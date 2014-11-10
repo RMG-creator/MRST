@@ -11,12 +11,13 @@ function wellSol = initWellSolLocal(W, state0, wellSolInit)
    end
 
    if wellSolGiven
-      wellSol = wellSolInit;
+      wellSol = extractMatchingWells(state0, wellSolInit, W, model);
    elseif isfield(state0, 'wellSol')
-      wellSol = extractMatchingWells(state0, W, model);
+      wellSol = extractMatchingWells(state0, state0.wellSol, W, model);
    else
       wellSol = defaultWellSol(state0, W, model);
    end
+
    wellSol = assignFromSchedule(W, wellSol);
 end
 
@@ -99,8 +100,8 @@ function ws = singleDefaultWell(state, W, model)
    ws.cqs  = zeros(nConn,nPh);
 end
 
-function wellSol = extractMatchingWells(state, W, model)
-   ws = state.wellSol;
+function wellSol = extractMatchingWells(state, wellSol, W, model)
+   ws = wellSol;
    wellSol = [];
    if numel(W) == 0 
       wellSol = defaultWellSol(state, W, model);
