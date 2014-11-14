@@ -40,11 +40,15 @@ function [dx, its, fl] = cprGeneric(eqs, system, varargin)
 
    ii = getEquationInxs(eqs);
 
-   if system.nonlinear.cprBlockInvert
-      [A, b, pInx] = getCPRSystemBlockInvert(eqs, ii, opt, active);
-   else
-      [A, b, pInx] = getCPRSystemDRS(eqs, ii, opt, active);
-      %[A, b, pInx] = getCPRSystemDiagonal(eqs, ii, opt);
+   switch system.nonlinear.cprMethod
+     case 'BlockInvert'
+       [A, b, pInx] = getCPRSystemBlockInvert(eqs, ii, opt, active);
+     case 'DRS'
+       [A, b, pInx] = getCPRSystemDRS(eqs, ii, opt, active);
+     case 'Diagonal'
+       [A, b, pInx] = getCPRSystemDiagonal(eqs, ii, opt);
+     otherwise
+       error('system.nonlinear.cprMethod not recognized.');
    end
 
    % Scale pressure variables
@@ -240,6 +244,43 @@ elseif active == 3
     % disp([sum(l1), sum(tt)])
 end
 end
+
+function [A, b, pInx] = getCPRSystemDiagonal(eqs, ii, opt)
+   pInx = false(ii(end,end), 1);
+   pInx(ii(1,1):ii(1,2)) = true;
+
+
+   if strcmpi(opt.cprType, 'diag')
+      cprFunc = @(A)(diag(A)');
+   elseif strcmpi(opt.cprType, 'colsum')
+      cprFunc = @sum;
+   end
+   
+
+   n = numel(eqs{1}.val);
+
+   deqs = eqs;
+   for k = 1:numel(eqs)
+      for l = 1:numel(eqs{1}.jac)
+         deqs{k}.jac{l} = spdiags(cprFunc(eqs{k}.jac{l})', 0, n,n);
+      end
+   end
+   deqs = cat(deqs{:});
+
+   % CAT means '.jac' is a single element cell array.  Extract contents.
+   D = deqs.jac{1};
+
+   eqs = cat(eqs{:});
+
+   % CAT means '.jac' is a single element cell array.  Extract contents.
+   A   = eqs.jac{1};
+   b   = -eqs.val;
+
+
+   A = D\A;
+   b = D\b;
+end
+
 
 function [A, b, pInx] = getCPRSystemBlockInvert(eqs, ii, opt, active)
    assert(active == 2 || active == 3);
