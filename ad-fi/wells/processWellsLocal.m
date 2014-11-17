@@ -596,7 +596,7 @@ end
 
 function W = reorderByDepth(G, W)
    for i = 1:numel(W)
-      if strcmp(W(i).name, 'VD7HPA')
+      if any(strcmp(W(i).name, {'VD7HPA', 'RJS377'})) 
          cells = W(i).cells;
          WI = W(i).WI;
          dZ = W(i).dZ;
