@@ -13,7 +13,7 @@ Rw    = sparse((1:numel(perf2well))', perf2well, 1, numel(perf2well), numel(W));
 Tw    = vertcat(W(:).WI);
 cWstatus = vertcat(W(:).cstatus);
 % Closed shut connection by setting WI = 0
-TW(~cWstatus) = 0;
+Tw(~cWstatus) = 0;
 
 %active phases
 if strcmp(model, 'OW')
