@@ -11,6 +11,10 @@ perf2well   = rldecode((1:numel(W))', nConn);
 % helpful matrix in dealing with all wells at one go
 Rw    = sparse((1:numel(perf2well))', perf2well, 1, numel(perf2well), numel(W));
 Tw    = vertcat(W(:).WI);
+cWstatus = vertcat(W(:).cstatus);
+% Closed shut connection by setting WI = 0
+TW(~cWstatus) = 0;
+
 %active phases
 if strcmp(model, 'OW')
     actPh = [1, 2];
@@ -38,6 +42,7 @@ end
 % Pressure drawdown (also used to determine direction of flow)
 drawdown    = -(Rw*pBH+vertcat(sol.cdp)) + p;
 connInjInx  = (drawdown <0 ); %current injecting connections
+
 
 % A cross-flow connection is is defined as a connection which has opposite
 % flow-direction to the well total flow
