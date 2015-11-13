@@ -1,3 +1,11 @@
+-- This reservoir simulation deck is made available under the Open Database
+-- License: http://opendatacommons.org/licenses/odbl/1.0/. Any rights in
+-- individual contents of the database are licensed under the Database Contents
+-- License: http://opendatacommons.org/licenses/dbcl/1.0/
+
+-- Copyright (C) 2015 Statoil
+-- Copyright (C) 2015 SINTEF ICT, Applied Mathematics
+
 RUNSPEC
 
 DIMENS
@@ -1096,7 +1104,6 @@ WELSPECS
 
 COMPDAT
     'INJE01' 1  1  4  5   'OPEN'  1* 200. 0.5 /
---    'INJE01' 1  1  2  2   'OPEN'  1* 200. 0.5   /
     'PROD01' 20  1  1  2    'OPEN'  1* 200. 0.5  /
 /
 
@@ -1113,10 +1120,7 @@ WPOLYMER
 TSTEP
 10*1
 10*5
---40*20
 20*20
---20*5
---4*10
 /
 
 WCONINJE
@@ -1129,8 +1133,6 @@ WPOLYMER
    'INJE01' 1.0 0.0 /
 /
 TSTEP
---6*10
---40*10
 40*20
 34*25
 /
