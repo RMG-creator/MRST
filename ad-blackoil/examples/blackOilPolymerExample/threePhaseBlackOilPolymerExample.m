@@ -35,19 +35,6 @@ state0.c       = zeros([G.cells.num, 1]);
 state0.cmax    = zeros([G.cells.num, 1]);
 modelBOPolymer = ThreePhaseBlackOilPolymerModel(G, rock, fluid, 'inputdata', deck);
 
-% read the initial conditions from the OPM output
-% which will be used for debugging purpose from time to time
-% state0.rs=load('3D_polymer/INITSOL/initrs.txt');
-% state0.rv=load('3D_polymer/INITSOL/initrv.txt');
-% state0.pressure=load('3D_polymer/INITSOL/initpressure.txt');
-%
-% temp = load('3D_polymer/INITSOL/initsaturation.txt');
-%
-% tempSa = [temp(1:3:size(temp,1))'; temp(2:3:size(temp,1))'; temp(3:3:size(temp,1))']';
-% state0.s = tempSa;
-%
-% clear temp tempSa;
-
 modelBOPolymer.disgas = 1;
 modelBOPolymer.vapoil = 1;
 
@@ -55,20 +42,18 @@ modelBOPolymer.vapoil = 1;
 schedule = convertDeckScheduleToMRST(G, modelBOPolymer, rock, deck);
 
 %% Set the non-linear solver
-% nonlinearsolver = getNonLinearSolver(modelBOPolymer);
-% nonlinearsolver = NonLinearSolver();
-% nonlinearsolver.useRelaxation = true
 modelBOPolymer.useCNVConvergence = true;
 
 if ~isempty(mrstPath('agmg'))
-     mrstModule add agmg
-     pSolver = AGMGSolverAD();
-     linsolve = CPRSolverAD('ellipticSolver', pSolver);
-     nonlinearsolver = NonLinearSolver('LinearSolver', linsolve);
+    mrstModule add agmg
+    pSolver = AGMGSolverAD();
+    linsolve = CPRSolverAD('ellipticSolver', pSolver);
+    nonlinearsolver = NonLinearSolver('LinearSolver', linsolve);
+    nonlinearsolver.useRelaxation = true
 else
     nonlinearsolver = NonLinearSolver();
+    nonlinearsolver.useRelaxation = true;
 end
-
 
 %% plotting the initial saturation
 h=figure(1);
@@ -132,56 +117,48 @@ plot(T, bhp(:,1)/barsa);
 title('BHPs for injection wells');
 ylabel('bhp (bar)');
 xlabel('time (day)');
-% axis([0,2100,0,500]);
 
 subplot(5,2,2);
 plot(T, bhp(:,2)/barsa);
 title('BHPs for production wells');
 ylabel('bhp (bar)');
 xlabel('time (day)');
-% axis([0,2100,0,500]);
 
 subplot(5,2,3);
 plot(T, qWs(:,1)*day);
 title('water injection rate');
 ylabel('WWIR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,1600]);
 
 subplot(5,2,4);
 plot(T, qWs(:,2)*day);
 title('Water Production Rate');
 ylabel('WWPR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,1600]);
 
 subplot(5,2,5);
 plot(T, qOs(:,1)*day);
 title('oil injection rate');
 ylabel('WOIR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,400]);
 
 subplot(5,2,6);
 plot(T, qOs(:,2)*day);
 title('oil production rate');
 ylabel('WOPR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,400]);
 
 subplot(5,2,7);
 plot(T, qGs(:,1)*day);
 title('gas injection rate');
 ylabel('WGIR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,15*10^6]);
 
 subplot(5,2,8);
 plot(T, qGs(:,2)*day);
 title('gas production rate');
 ylabel('WGPR (m^3/day)');
 xlabel('time (day)');
-% axis([0,2100,0,15*10^6]);
 
 
 extract1 = @(wsol, fld) [ wsol.(fld) ];
@@ -197,14 +174,12 @@ plot(T, qWPoly(:,1)*day);
 title('polymer injection rate');
 ylabel('WCIR (kg/day)');
 xlabel('time (day)');
-% axis([0,2100,0,8000]);
 
 subplot(5,2,10);
 plot(T, qWPoly(:,2)*day);
 title('polymer production rate');
 ylabel('WCPR (kg/day)');
 xlabel('time (day)');
-% axis([0,2100,0,1]);
 
 pause(0.5);
 
