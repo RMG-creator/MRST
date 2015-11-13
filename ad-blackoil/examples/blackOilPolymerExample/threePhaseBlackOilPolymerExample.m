@@ -49,7 +49,7 @@ if ~isempty(mrstPath('agmg'))
     pSolver = AGMGSolverAD();
     linsolve = CPRSolverAD('ellipticSolver', pSolver);
     nonlinearsolver = NonLinearSolver('LinearSolver', linsolve);
-    nonlinearsolver.useRelaxation = true
+    nonlinearsolver.useRelaxation = true;
 else
     nonlinearsolver = NonLinearSolver();
     nonlinearsolver.useRelaxation = true;
@@ -61,7 +61,7 @@ set(h, 'Position', [100, 100, 900, 600]);
 clf;
 
 subplot(2,2,1);
-plotGrid(G, 'facec', 'none');
+plotGrid(G, 'FaceColor', 'none');
 axis tight off;
 view(26,18);
 W = schedule.control(1).W;
@@ -69,7 +69,7 @@ plotWell(G,W);
 
 subplot(2,2,2);
 plotCellData(G, state0.s(:,1));
-plotGrid(G, 'facec', 'none')
+plotGrid(G, 'FaceColor', 'none')
 title('Initial Water saturation')
 axis tight off
 view(26,18);
@@ -77,7 +77,7 @@ colorbar;
 
 subplot(2,2,3);
 plotCellData(G, state0.s(:,2));
-plotGrid(G, 'facec', 'none')
+plotGrid(G, 'FaceColor', 'none')
 title('Initial Oil saturation')
 axis tight off
 view(26,18);
@@ -85,7 +85,7 @@ colorbar;
 
 subplot(2,2,4);
 plotCellData(G, state0.s(:,3));
-plotGrid(G, 'facec', 'none')
+plotGrid(G, 'FaceColor', 'none')
 title('Initial Gas saturation')
 axis tight off
 view(26,18);
@@ -113,49 +113,49 @@ T     = convertTo(cumsum(schedule.step.val), day);
 [qWs, qOs, qGs, bhp] = wellSolToVector(wellSolsPolymer);
 
 subplot(5,2,1);
-plot(T, bhp(:,1)/barsa);
+plot(T, convertTo(bhp(:,1), barsa));
 title('BHPs for injection wells');
 ylabel('bhp (bar)');
 xlabel('time (day)');
 
 subplot(5,2,2);
-plot(T, bhp(:,2)/barsa);
+plot(T, convertTo(bhp(:,2), barsa));
 title('BHPs for production wells');
 ylabel('bhp (bar)');
 xlabel('time (day)');
 
 subplot(5,2,3);
-plot(T, qWs(:,1)*day);
+plot(T, convertTo(qWs(:,1), meter^3/day));
 title('water injection rate');
 ylabel('WWIR (m^3/day)');
 xlabel('time (day)');
 
 subplot(5,2,4);
-plot(T, qWs(:,2)*day);
+plot(T, convertTo(qWs(:,2), meter^3/day));
 title('Water Production Rate');
 ylabel('WWPR (m^3/day)');
 xlabel('time (day)');
 
 subplot(5,2,5);
-plot(T, qOs(:,1)*day);
+plot(T, convertTo(qOs(:,1), meter^3/day));
 title('oil injection rate');
 ylabel('WOIR (m^3/day)');
 xlabel('time (day)');
 
 subplot(5,2,6);
-plot(T, qOs(:,2)*day);
+plot(T, convertTo(qOs(:,2), meter^3/day));
 title('oil production rate');
 ylabel('WOPR (m^3/day)');
 xlabel('time (day)');
 
 subplot(5,2,7);
-plot(T, qGs(:,1)*day);
+plot(T, convertTo(qGs(:,1), meter^3/day));
 title('gas injection rate');
 ylabel('WGIR (m^3/day)');
 xlabel('time (day)');
 
 subplot(5,2,8);
-plot(T, qGs(:,2)*day);
+plot(T, convertTo(qGs(:,2), meter^3/day));
 title('gas production rate');
 ylabel('WGPR (m^3/day)');
 xlabel('time (day)');
@@ -170,13 +170,13 @@ sgn =        extract('sign');
 qWPoly = sgn .* extract('qWPoly');
 
 subplot(5,2,9);
-plot(T, qWPoly(:,1)*day);
+plot(T, convertTo(qWPoly(:,1), kilogram/day));
 title('polymer injection rate');
 ylabel('WCIR (kg/day)');
 xlabel('time (day)');
 
 subplot(5,2,10);
-plot(T, qWPoly(:,2)*day);
+plot(T, convertTo(qWPoly(:,2), kilogram/day));
 title('polymer production rate');
 ylabel('WCPR (kg/day)');
 xlabel('time (day)');
@@ -197,7 +197,7 @@ for iStep = 1:10:numStep
 
     subplot(2,2,1);
     plotCellData(G, stateStep.s(:,1));
-    plotGrid(G, 'facec', 'none')
+    plotGrid(G, 'FaceColor', 'none')
     title('Water saturation')
     axis tight off
     view(26,18);
@@ -206,7 +206,7 @@ for iStep = 1:10:numStep
 
     subplot(2,2,2);
     plotCellData(G, stateStep.s(:,2));
-    plotGrid(G, 'facec', 'none')
+    plotGrid(G, 'FaceColor', 'none')
     title('Oil saturation')
     axis tight off
     view(26,18);
@@ -214,7 +214,7 @@ for iStep = 1:10:numStep
 
     subplot(2,2,3);
     plotCellData(G, stateStep.s(:,3));
-    plotGrid(G, 'facec', 'none')
+    plotGrid(G, 'FaceColor', 'none')
     title('Gas saturation')
     axis tight off
     view(26,18);
@@ -222,7 +222,7 @@ for iStep = 1:10:numStep
 
     subplot(2,2,4);
     plotCellData(G, stateStep.c);
-    plotGrid(G, 'facec', 'none')
+    plotGrid(G, 'FaceColor', 'none')
     title('Polymer concentration')
     axis tight off
     view(26,18);
