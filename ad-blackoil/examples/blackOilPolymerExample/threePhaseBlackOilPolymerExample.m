@@ -44,16 +44,17 @@ schedule = convertDeckScheduleToMRST(G, modelBOPolymer, rock, deck);
 %% Set the non-linear solver
 modelBOPolymer.useCNVConvergence = true;
 
+% choose the linear solver for pressure equation
 if ~isempty(mrstPath('agmg'))
     mrstModule add agmg
     pSolver = AGMGSolverAD();
-    linsolve = CPRSolverAD('ellipticSolver', pSolver);
-    nonlinearsolver = NonLinearSolver('LinearSolver', linsolve);
-    nonlinearsolver.useRelaxation = true;
 else
-    nonlinearsolver = NonLinearSolver();
-    nonlinearsolver.useRelaxation = true;
+    pSolver = BackslashSolverAD();
 end
+linsolve = CPRSolverAD('ellipticSolver', pSolver);
+nonlinearsolver = getNonLinearSolver(modelBOPolymer, 'DynamicTimesteps', false, 'LinearSolver', linsolve);
+nonlinearsolver.useRelaxation = true;
+
 
 %% plotting the initial saturation
 h=figure(1);
