@@ -165,14 +165,9 @@ title('gas production rate');
 ylabel('WGPR (m^3/day)');
 xlabel('time (day)');
 
-
-extract1 = @(wsol, fld) [ wsol.(fld) ];
-extract2 = @( c ) vertcat(c{:});
-extract  = @(fld) extract2(cellfun(@(wsol) extract1(wsol, fld), ...
-                           wellSolsPolymer, 'UniformOutput', false));
-
-sgn =        extract('sign');
-qWPoly = sgn .* extract('qWPoly');
+qWPoly = getWellOutput(wellSolsPolymer, 'qWPoly');
+sign = getWellOutput(wellSolsPolymer, 'sign');
+qWPoly = sign .* qWPoly;
 
 subplot(5,2,9);
 plot(T, convertTo(qWPoly(:,1), kilogram/day));
