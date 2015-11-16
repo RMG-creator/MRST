@@ -6,7 +6,11 @@
 % polymer, then water flooding period with polymer, followed by a pure
 % water flooding phase without polymer.
 %
-
+% To access the DATA file, use the following command to download the DATA
+% file for this example,
+%              downloadDataset('blackoilpolymer2d')
+% or use the following command to download all the available DATA files.
+%              downloadAllDatasets
 clear;
 
 mrstModule add ad-core ad-props ad-blackoil ad-fi deckformat
@@ -23,7 +27,7 @@ G = computeGeometry(G);
 rock  = initEclipseRock(deck);
 rock  = compressRock(rock, G.cells.indexMap);
 
-%% set the initial conditsions with with InitEclipseState
+%% set the initial conditions with with InitEclipseState
 % for this deck, equil is used to initialize the initial state, while the
 % results of the initialization need to be verified against Eclipse later.
 
@@ -56,7 +60,7 @@ nonlinearsolver = getNonLinearSolver(modelBOPolymer, 'DynamicTimesteps', false, 
 nonlinearsolver.useRelaxation = true;
 
 
-%% plotting the initial saturation
+%% plotting the initial saturations
 h=figure(1);
 set(h, 'Position', [100, 100, 900, 600]);
 clf;
@@ -104,7 +108,7 @@ pause(0.5);
    simulateScheduleAD(state0, modelBOPolymer, schedule, 'NonLinearSolver', nonlinearsolver);
 
 
-%% plotting the wells data
+%% plotting the well data
 h = figure(3);
 set(h, 'Position', [100, 50, 900, 1300]);
 clf;
@@ -233,5 +237,5 @@ for iStep = 1:10:numStep
 
 end
 %%
-save resMRSTPolymer wellSolsPolymer statesPolymer schedule;
+% save resMRSTPolymer wellSolsPolymer statesPolymer schedule;
 fprintf('The simulation has been finished! \n');
