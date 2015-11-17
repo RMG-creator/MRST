@@ -5,20 +5,28 @@
 % The schedule being used contains first a period of injection without
 % polymer, then water flooding period with polymer, followed by a pure
 % water flooding phase without polymer.
-%
-% To access the DATA file, use the following command to download the DATA
-% file for this example,
-%              downloadDataset('blackoilpolymer2d')
-% or use the following command to download all the available DATA files.
-%              downloadAllDatasets
+
 clear;
 
 mrstModule add ad-core ad-props ad-blackoil ad-fi deckformat
 
-current_dir = fileparts(mfilename('fullpath'));
-fn    = fullfile(current_dir, '2D_THREEPHASE_POLY_HETER.DATA');
+% the data required for the example
+% if the data does not exist locally, download it automatically
+fname = { '2D_THREEPHASE_POLY_HETER.DATA', 'POLY.inc' };
+files = fullfile(getDatasetPath('BlackoilPolymer2D', 'download', true), fname);
 
-deck = readEclipseDeck(fn);
+% check to make sure the files are complete
+e = cellfun(@(pth) exist(pth, 'file') == 2, files);
+
+if ~all(e),
+   pl = ''; if sum(e) ~= 1, pl = 's'; end
+   msg = sprintf('Missing data file%s\n', pl);
+   msg = [msg, sprintf('  * %s\n', fname{~e})];
+   error('Dataset:Incomplete', msg);
+end
+
+% parsing the data file
+deck = readEclipseDeck(files{1});
 deck = convertDeckUnits(deck);
 
 G = initEclipseGrid(deck);
