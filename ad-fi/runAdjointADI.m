@@ -162,11 +162,12 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
       control = schedule.step.control(tstep);
       if control~=prevControl
         if (control==0)
-           W = processWellsLocal(G, rock, [], 'createDefaultWell', true);
+           W = processWells(G, rock, [], 'createDefaultWell', true);
         else
             if ~useMrstSchedule
-                W = processWellsLocal(G, rock, schedule.control(control), 'Verbose', opt.Verbose, ...
-                                      'DepthReorder', true);
+                W = processWells(G, rock, schedule.control(control), ...
+                                 'Verbose', opt.Verbose, ...
+                                 'DepthReorder', true);
             else
                 W = schedule.control(control).W;
             end

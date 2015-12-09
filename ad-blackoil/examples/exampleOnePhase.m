@@ -1,6 +1,6 @@
 %% Read the problem from a deckfile
 
-mrstModule add ad-props  ad-core ad-blackoil
+mrstModule add ad-props ad-core ad-blackoil ad-fi
 
 % Create grid
 %G=cartGrid([100 10 1],[1000 100 10])

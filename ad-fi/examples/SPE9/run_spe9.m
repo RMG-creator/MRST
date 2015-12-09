@@ -4,9 +4,9 @@
 % SPE Reservoir Simulation Symposium,  12-15 February 1995, San Antonio,
 % Texas. SPE 29110-MS, doi: 10.2118/29110-MS
 try
-   require ad-fi ad-core deckformat mrst-gui
+   require ad-fi ad-core ad-props deckformat mrst-gui
 catch %#ok<CTCH>
-   mrstModule add ad-fi ad-core deckformat mrst-gui
+   mrstModule add ad-fi ad-core ad-props deckformat mrst-gui
 end
 
 mrstVerbose true
@@ -64,9 +64,9 @@ schedule = deck.SCHEDULE;
 system = initADISystem(deck, G, rock, fluid, 'cpr', true);
 system.nonlinear.cprBlockInvert = false;
 % convergence is overall better for quite strict limits on update
-system.stepOptions.drsMax = .2;
-system.stepOptions.dpMax  = .2;
-system.stepOptions.dsMax  = .05;
+system.stepOptions.drsMax = 0.2;
+system.stepOptions.dpMax  = 0.2;
+system.stepOptions.dsMax  = 0.05;
 % gmres tol needs to be quite strict
 system.nonlinear.cprRelTol = 1e-3;
 
@@ -78,15 +78,15 @@ set(h, 'XTickLabel', num2str(10 .^ (get(h, 'XTick') .')), ...
     'YTick', 0.5, 'YTickLabel', '[mD]', ...
     'Position', [0.13, 0.05, 0.77, 0.03]);
 
-W = processWellsLocal(G,rock, schedule.control(1));
+W = processWells(G,rock, schedule.control(1));
 nm = [ { 'I' }, ...
        arrayfun(@(w) sprintf('P-%02d', w - 1), 2 : numel(W), ...
                 'UniformOutput', false) ];
 [ W.name ] = nm{:}; clear nm
 
-plotWell(G, W(1),    'color', 'b', 'LineWidth', 3, 'FontSize', 14);
-plotWell(G, W(2:end),'color', 'k', 'LineWidth', 3, 'FontSize', 14);
-axis tight, view(40,55);
+plotWell(G, W(1),     'color', 'b', 'LineWidth', 3, 'FontSize', 14);
+plotWell(G, W(2:end), 'color', 'k', 'LineWidth', 3, 'FontSize', 14);
+axis tight, view(40,55)
 
 %% Run schedule
 % We use the fully implicit solver
@@ -120,8 +120,7 @@ end
 % initially ([0,300], [300,360], [360,900] days). For some timesteps, the
 % well controls have switched from rate to bhp.
 
-T     = convertTo(cumsum(schedule.step.val), day);
-
+T = convertTo(cumsum(schedule.step.val), day);
 % Put the well solution data into a format more suitable for plotting
 [qWs, qOs, qGs, bhp] = wellSolToVector(wellSols);
 injInx = 1;
