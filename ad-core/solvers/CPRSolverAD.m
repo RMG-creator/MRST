@@ -23,7 +23,7 @@ classdef CPRSolverAD < LinearSolverAD
 %   BackslashSolverAD, LinearSolverAD, LinearizedProblem
 
 %{
-Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -49,6 +49,9 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         ellipticSolver
         % Diagonal tolerance in [0,1].
         diagonalTol
+        % Name of elliptic-like variable which will be solved using
+        % elliptic solver.
+        ellipticVarName
     end
     methods
         function solver = CPRSolverAD(varargin)
@@ -59,6 +62,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             solver.relativeTolerance = 1e-2;
             solver.pressureScaling = 1/(200*barsa);
             solver.diagonalTol = 1e-2;
+            solver.ellipticVarName = 'pressure';
             
             solver = merge_options(solver, varargin{:});
             
@@ -78,7 +82,18 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             % residual preconditioner
             timer = tic();
             
-            isPressure = problem0.indexOfPrimaryVariable('pressure');
+            % In the case that we have a oil equation, we generally want
+            % this to be the first entry as most black oil models are
+            % parametrized by oil pressure as the primary variable.
+            isOilEq = problem0.indexOfEquationName('oil');
+            if any(isOilEq) && ~isOilEq(1)
+                indices = 1:numel(problem0);
+                indices(isOilEq) = 1;
+                indices(1)   = find(isOilEq);
+                problem0 = problem0.reorderEquations(indices);
+            end
+            
+            isPressure = problem0.indexOfPrimaryVariable(solver.ellipticVarName);
             pressureIndex = find(isPressure);
             
             [problem, eliminated] = problem0.reduceToSingleVariableType('cell');
@@ -89,13 +104,15 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             nCell = problem.getEquationVarNum(1);
             
             % Get and apply scaling
-            eqs = problem.equations;
-            scale = getScaling(problem, model);
-            for eqn = 1:cellEqNo
-                eqs{eqn} = eqs{eqn}.*scale(eqn);
-            end
-            problem.equations = eqs;
+            scale = model.getScalingFactorsCPR(problem, problem.equationNames);
             
+            for i = 1:numel(scale)
+                if numel(scale{i}) > 1 || scale{i} ~= 0
+                     problem.equations{i} = problem.equations{i}.*scale{i};
+                end
+            end
+            eqs = problem.equations;
+                      
             isElliptic = false(nCell, cellEqNo);
             for i = 1:cellEqNo
                 % Find the derivative of current cell block w.r.t the
@@ -152,14 +169,12 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                 % close as possible to M-matrices (because of switching,
                 % which does not actually alter the solution)
                 ok = isElliptic(:, i);
-                if i == pressureIndex
+                if i == pressureIndex || scale{i} == 0
                     continue
                 end
                 problem.equations{pressureIndex} = ...
                     problem.equations{pressureIndex} + ok.*eqs{i};
             end
-            
-
             
             % Solve cell equations
             if solver.pressureScaling ~= 1
@@ -186,6 +201,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             ellipSolve = @(b) solver.ellipticSolver.solveLinearSystem(Ap, b);
 
             prec = @(r) applyTwoStagePreconditioner(r, A, L, U, pInx, ellipSolve);
+            assert(all(isfinite(b)), 'Linear system rhs must have finite entries.');
             try
                 [cprSol, fl, relres, its, resvec] = gmres(A, b, [], solver.relativeTolerance,...
                                                     min(solver.maxIterations, size(A, 1)), prec);
@@ -207,9 +223,22 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             dxCell = solver.storeIncrements(problem, cprSol);
             dx = problem.recoverFromSingleVariableType(problem0, dxCell, eliminated);
             
-            %dispif(solver.verbose, 'GMRES converged in %d iterations\n', its(2));
             % Recover stuff
             solvetime = toc(timer);
+            
+            if solver.verbose
+                switch fl
+                    case 0
+                        fprintf('GMRES converged:');
+                    case 1
+                        fprintf('GMRES did not converge. Reached maximum iterations');
+                    case 2
+                        fprintf('GMRES did not converge. Preconditioner was ill-conditioned.');
+                    case 3
+                        fprintf('GMRES stagnated. Unable to reduce residual.');
+                end
+                fprintf(' Final residual: %1.2e after %d iterations (tol: %1.2e) \n', relres, its(2), solver.relativeTolerance);
+            end
             
             if nargout > 1
                 result = vertcat(dx{:});
@@ -235,41 +264,4 @@ function x = applyTwoStagePreconditioner(r, A, L, U, pInx, ellipticSolver)
 
    r = r - A*x;
    x = x + U\(L\r);
-end
-
-function scale = getScaling(problem, model)
-    state = problem.state;
-    fluid = model.fluid;
-    p  = mean(state.pressure);
-    
-    if model.water
-        bW = fluid.bW(p);
-    end
-    
-    scale = ones(numel(problem), 1);
-    
-    isBO = isa(model, 'ThreePhaseBlackOilModel');
-    
-    if isBO && model.disgas
-        rs = fluid.rsSat(p);
-        bO = fluid.bO(p, rs, true);
-    elseif model.oil
-        bO = fluid.bO(p);
-    end
-    if isBO && model.vapoil
-        rv = fluid.rvSat(p);
-        bG = fluid.bG(p, rv, true);
-    elseif model.gas
-        bG = fluid.bG(p);
-    end
-
-    if model.oil
-        scale(problem.indexOfEquationName('oil')) = 1./bO;
-    end
-    if model.gas
-        scale(problem.indexOfEquationName('gas')) = 1./bG;
-    end
-    if model.water
-        scale(problem.indexOfEquationName('water')) = 1./bW;
-    end
 end

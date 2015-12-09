@@ -18,14 +18,20 @@ function wellSol = assignWellValuesFromControl(model, wellSol, W, wi, oi, gi)
                 if model.gas
                     ws.qGs = v*W(w).compi(gi);
                 end
+                if isprop(model, 'polymer') && model.polymer
+                    ws.qWPoly = ws.qWs*W(w).poly;
+                end
             case 'orat'
                 ws.qOs = v;
             case 'wrat'
                 ws.qWs = v;
             case 'grat'
                 ws.qGs = v;
+            case 'lrat'
+                % Do nothing
             otherwise
                 error('Unknown well control mode');
         end
+        wellSol(w) = ws;
     end
 end

@@ -37,6 +37,8 @@ classdef TestSimulateScheduleAD < matlab.unittest.TestCase
             
             % Disable flux output for comparison purposes
             model.outputFluxes = false;
+            model.extraStateOutput = false;
+            model.extraWellSolOutput = false;
             % Override schedule with a single timestep
             schedule.step.val = 1*day;
             schedule.step.control = 1;
@@ -148,7 +150,7 @@ classdef TestSimulateScheduleAD < matlab.unittest.TestCase
             nonlinear = NonLinearSolver('TimeStepSelector', ts,...
                                         'maxTimestepCuts', 0, ...
                                         'errorOnFailure', false, ...
-                                        'maxIterations', 10, ...
+                                        'maxIterations', 8, ...
                                         'verbose', true);
             
             

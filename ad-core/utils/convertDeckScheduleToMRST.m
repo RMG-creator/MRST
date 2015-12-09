@@ -28,7 +28,7 @@ function scheduleMRST = convertDeckScheduleToMRST(G, model, rock, scheduleDeck, 
 %   scheduleMRST - Schedule ready for simulation in 'simulateScheduleAD'.
 
 %{
-Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -46,7 +46,8 @@ You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 %}
 
-    opt = struct('StepLimit', inf);
+    opt = struct('StepLimit', inf, ...
+                 'EnsureConsistent', true);
     opt = merge_options(opt, varargin{:});
 
 
@@ -81,7 +82,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     
     for i = 1:nc
         % Parse well
-        W = processWellsLocal(G, rock, scheduleDeck.control(i));
+        W = processWells(G, rock, scheduleDeck.control(i));
         
         for j = 1:numel(W)
             c = [W(j).compi, 0];
@@ -93,5 +94,9 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     if ~isinf(opt.StepLimit)
         scheduleMRST.step.val     = scheduleMRST.step.val(1:opt.StepLimit);
         scheduleMRST.step.control = scheduleMRST.step.control(1:opt.StepLimit);
+    end
+    
+    if opt.EnsureConsistent
+        scheduleMRST = makeScheduleConsistent(scheduleMRST);
     end
 end

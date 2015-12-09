@@ -24,7 +24,7 @@ classdef WaterModel < ReservoirModel
             model = merge_options(model, varargin{:});
             
             % Setup operators
-            model = model.setupOperators(G, rock, 'deck', model.inputdata);
+            %model = model.setupOperators(G, rock, 'deck', model.inputdata);
         end
         
         function [problem, state] = getEquations(model, state0, state, dt, drivingForces, varargin)
@@ -45,7 +45,7 @@ classdef WaterModel < ReservoirModel
             oi = strcmpi(saturations, 'so');
             gi = strcmpi(saturations, 'sg');
 
-            W = drivingForces.Wells;
+            W = drivingForces.W;
             state.wellSol = assignWellValuesFromControl(model, state.wellSol, W, wi, oi, gi);
 
         end

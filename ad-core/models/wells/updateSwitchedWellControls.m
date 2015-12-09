@@ -1,4 +1,45 @@
 function [sol, withinLims] = updateSwitchedWellControls(wellmodel, model, sol, pBH, q_s)
+%Check for violated well limits and switch controls. 
+%
+% SYNOPSIS:
+%   [sol, withinLims] = ...
+%              updateSwitchedWellControls(wellmodel, model, sol, pBH, q_s)
+%
+% PARAMETERS:
+%   wellmodel   - Simulation well model.
+%   model       - Simulation model.
+%   sol         - List of current well solution structures
+%   pBH         - Vector of well bhps
+%   q_s         - List of vectors of well component volume-rates 
+%                 (surface conds) 
+%
+% RETURNS:
+%   sol         - Well solution structures with updated fields 'type' and
+%                 'val' in case of control switching
+%   withinLims  - Logical vector with 'false' corresponding to wells where 
+%                 limits were violated and switching has been perfomed.Ben
+%
+% SEE ALSO:
+%   WellModel, setupWellControlEquation
+
+%{
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}
 W = wellmodel.W;
 if isempty(W)||isempty(W(1).lims)
     withinLims = true(numel(sol),1);
@@ -12,21 +53,33 @@ else
     q_s   = cell2mat( cellfun(@double, q_s, 'UniformOutput', false) );
 
     for wnr = 1:numel(sol)
-        lims = W(wnr).lims;
-        if ~allowWellSignChange
-            lims.vrat = -inf;
-        else
-            lims.vrat = -inf;
+        if isfield(W(wnr), 'status') && ~W(wnr).status
+            % Inactive well, skip any limit checks
+            continue
         end
+        lims = W(wnr).lims;
+
         pBHw  = pBH(wnr);
         q_sw  = q_s(wnr,:);
         qt_sw = sum(q_sw);
         if ~isnumeric(W(wnr).lims)
+            if ~allowWellSignChange
+                lims.vrat = -inf;
+            else
+                lims.vrat = -inf;
+            end
             if sol(wnr).sign > 0   % injector
                 modes   = {'bhp', 'rate', 'rate'};
                 flags = [pBHw > lims.bhp, qt_sw > lims.rate, qt_sw < lims.vrat];
             else            % producer
                 modes   = {'bhp', 'orat', 'lrat', 'grat', 'wrat', 'vrat'};
+                
+                % insert dummy limits for missing fields
+                missing_fields = {modes{~cellfun(@(x) isfield(lims, x), modes)}};
+                for f = missing_fields
+                   lims = setfield(lims, f{:}, -inf);
+                end
+                
                 flags = [pBHw       < lims.bhp,  ...
                     q_sw(2)         < lims.orat, ...
                     q_sw(1)+q_sw(2) < lims.lrat, ...

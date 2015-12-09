@@ -1,8 +1,8 @@
-function [converged, values] = CNV_MBConvergence(model, problem)
+function [converged, values, evaluated, names] = CNV_MBConvergence(model, problem)
     % Compute convergence based on total mass balance and maximum residual mass balance.
     %
     % SYNOPSIS:
-    %   [converged, values] = CNV_MBConvergence(model, problem)
+    %   [converged, values, evaluated] = CNV_MBConvergence(model, problem)
     %
     % DESCRIPTION:
     %   Compute CNV/MB type convergence similar to what is used for black
@@ -25,9 +25,16 @@ function [converged, values] = CNV_MBConvergence(model, problem)
     %                 three terms followed by cnv in the last three. The
     %                 phase ordering is assumed to be oil, water, gas.
     %                 Phases present will return a zero in their place.
+    %
+    %   evaluated   - Logical array into problem.equations indicating which
+    %                 residual equations we have actually checked 
+    %                 convergence for.
+    %
+    %   names       - Cell array of same length as values with short names
+    %                 for printing/debugging.
  
     %{
-    Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+    Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
     This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -55,11 +62,22 @@ function [converged, values] = CNV_MBConvergence(model, problem)
     tol_mb = model.toleranceMB;
     tol_cnv = model.toleranceCNV;
 
-    if model.water,
+    evaluated = false(1, numel(problem));
+    
+    subW = problem.indexOfEquationName('water');
+    subO = problem.indexOfEquationName('oil');
+    subG = problem.indexOfEquationName('gas');
+    
+    active = [false, false, false];
+    if any(subW),
+        assert(model.water);
         BW = 1./fluid.bW(state.pressure);
-        RW = double(problem.equations{problem.indexOfEquationName('water')});
+        RW = double(problem.equations{subW});
         BW_avg = sum(BW)/nc;
         CNVW = BW_avg*problem.dt*max(abs(RW)./pv);
+        
+        evaluated(subW) = true;
+        active(1) = true;
     else
         BW_avg = 0;
         CNVW   = 0;
@@ -67,7 +85,8 @@ function [converged, values] = CNV_MBConvergence(model, problem)
     end
 
     % OIL
-    if model.oil,
+    if any(subO),
+        assert(model.oil);
         if isprop(model, 'disgas') && model.disgas
             % If we have liveoil, BO is defined not only by pressure, but
             % also by oil solved in gas which must be calculated in cells
@@ -76,9 +95,13 @@ function [converged, values] = CNV_MBConvergence(model, problem)
         else
             BO = 1./fluid.bO(state.pressure);
         end
-        RO = double(problem.equations{problem.indexOfEquationName('oil')});
+        
+        RO = double(problem.equations{subO});
         BO_avg = sum(BO)/nc;
         CNVO = BO_avg*problem.dt*max(abs(RO)./pv);
+        
+        evaluated(subO) = true;
+        active(2) = true;
     else
         BO_avg = 0;
         CNVO   = 0;
@@ -86,15 +109,19 @@ function [converged, values] = CNV_MBConvergence(model, problem)
     end
 
     % GAS
-    if model.gas,
+    if any(subG),
+        assert(model.gas);
         if isprop(model, 'vapoil') && model.vapoil
             BG = 1./fluid.bG(state.pressure, state.rv, state.s(:,2)>0); % need to fix index...
         else
             BG = 1./fluid.bG(state.pressure);
         end
-        RG = double(problem.equations{problem.indexOfEquationName('gas')});
+        RG = double(problem.equations{subG});
         BG_avg = sum(BG)/nc;
         CNVG = BG_avg*problem.dt*max(abs(RG)./pv);
+        
+        evaluated(subG) = true;
+        active(3) = true;
     else
         BG_avg = 0;
         CNVG   = 0;
@@ -103,23 +130,16 @@ function [converged, values] = CNV_MBConvergence(model, problem)
 
     % Check if material balance for each phase fullfills residual
     % convergence criterion
-    MB = abs([BO_avg*sum(RO), BW_avg*sum(RW) BG_avg*sum(RG)]);
-    converged_MB  = all(MB < tol_mb*pvsum/problem.dt);
+    MB = problem.dt*abs([BW_avg*sum(RW), BO_avg*sum(RO), BG_avg*sum(RG)])/pvsum;
+    converged_MB  = MB < tol_mb;
 
     % Check maximum normalized residuals (maximum mass error)
-    CNV = [CNVO CNVW CNVG] ;
-    converged_CNV = all(CNV < tol_cnv);
+    CNV = [CNVW CNVO CNVG] ;
+    converged_CNV = CNV <= tol_cnv;
 
-
-
-    converged = converged_MB & converged_CNV;
-    values = [CNV, MB];
-    
-    if mrstVerbose()
-        if problem.iterationNo == 1
-            fprintf('CNVO\t\tCNVW\t\tCNVG\t\tMBO\t\tMBW\t\tMBG\n');
-        end
-        fprintf('%2.2e\t', values);
-        fprintf('\n')
-    end
+    converged = converged_MB(active) & converged_CNV(active);
+    values = [CNV(active), MB(active)];
+    cnv_names = {'CNV_W', 'CNV_O', 'CNV_G'};
+    mb_names = {'MB_W', 'MB_O', 'MB_G'};
+    names = horzcat(cnv_names(active), mb_names(active));
 end

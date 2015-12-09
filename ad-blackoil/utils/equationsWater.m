@@ -9,10 +9,10 @@ opt = struct('Verbose', mrstVerbose, ...
 
 opt = merge_options(opt, varargin{:});
 
-W = drivingForces.Wells;
+W = drivingForces.W;
 %assert(isempty(drivingForces.bc) && isempty(drivingForces.src))
 assert(isempty(drivingForces.src))
-bc = drivingForces.bc;
+
 
 s = model.operators;
 G = model.G;
@@ -43,8 +43,9 @@ end
 primaryVars = {'pressure','qWs', 'bhp'};
 
 clear tmp
-grav  = gravity;
-gdz   = s.Grad(G.cells.centroids) * grav';
+%grav  = gravity;
+%gdz   = s.Grad(G.cells.centroids) * model.gravity';
+gdz   = s.Grad(G.cells.centroids) * model.getGravityVector()';
 %--------------------
 %check for p-dependent tran mult:
 trMult = 1;
@@ -87,27 +88,13 @@ end
 % EQUATIONS ---------------------------------------------------------------
 % water:
 eqs{1} = (s.pv/dt).*( pvMult.*bW - pvMult0.*f.bW(p0) ) + s.Div(bWvW);
-
-if(~isempty(bc))
-    if(isfield(bc,'cell2bcface'))
-        % uses mrst-autodiff/ad-fi/experimental/bc2ADbc.m
-        pX={p};rhoX={rhoW};mobX={mobW};bX={bW};
-        bXqXbc = pressureBCContribADI(G,s,pX, rhoX, mobX, bX, bc);
-        for i=1:numel(bXqXbc)
-            eqs{i}  = eqs{i}+ bc.bcface2cell*bXqXbc{i};
-        end
-    else
-        pX={p};rhoX={rhoW};mobX={mobW};bX={bW};
-        [bXqXbc,bc_cell] = pressureBCContrib(G,s,pX, rhoX, mobX, bX, bc);
-        for i=1:numel(bXqXbc)
-            eqs{i}(bc_cell)  = eqs{i}(bc_cell)+ bXqXbc{i};
-        end
-    end
-end
-
-
-
-
+eqs = addFluxesFromSourcesAndBC(model, eqs, ...
+                                       {p},...
+                                       {rhoW},...
+                                       {mobW}, ...
+                                       {bW},  ...
+                                       {1}, ...
+                                       drivingForces);
 
 names = {'water'};
 types = {'cell'};

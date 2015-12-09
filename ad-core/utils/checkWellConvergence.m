@@ -1,4 +1,4 @@
-function [convergence, values] = checkWellConvergence(model, problem)
+function [convergence, values, evaluated, names] = checkWellConvergence(model, problem)
     % Compute convergence for wells.
     %
     % SYNOPSIS:
@@ -22,9 +22,13 @@ function [convergence, values] = checkWellConvergence(model, problem)
     %                 LinearizedProblem has converged.
     %                  
     %   values      - Residual inf of wells.
- 
+    %
+    %   evaluated   - Logical array into problem.equations indicating which
+    %                 residual equations we have actually checked 
+    %                 convergence for.
+
     %{
-    Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+    Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
     This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -44,6 +48,7 @@ function [convergence, values] = checkWellConvergence(model, problem)
     isperf = problem.indexOfType('perf');
     iswell = problem.indexOfType('well');
     
+    evaluated = isperf | iswell;
     
     ratevals = problem.equations(isperf);
     bhpvals = problem.equations(iswell);
@@ -58,4 +63,6 @@ function [convergence, values] = checkWellConvergence(model, problem)
     convergence = false(size(tmp));
     convergence(isperf) = values(isperf) < model.toleranceWellRate;
     convergence(iswell) = values(iswell) < model.toleranceWellBHP;
+    
+    names = strcat(problem.equationNames(evaluated), ' (', problem.types(evaluated), ')');
 end

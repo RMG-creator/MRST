@@ -1,16 +1,55 @@
 function wellSol = initWellSolAD(W, model, state0, wellSolInit)
-% model = someFunction(state)
-% initialization should depend on model, for now just dstinguish between 2
-% and three phases
-wellSolGiven =  (nargin == 4);
+%Set up well solution struct for a automatic differentiation model
+%
+% SYNOPSIS:
+%   wellSol = initWellSolAD(W, model, state0);
+%   wellSol = initWellSolAD(W, model, state0, ws);
+%
+% DESCRIPTION:
+%   Create or extract the wellSol, and ensure that it contains the correct
+%   fields for advanced solvers with well limits and variable perforation
+%   counts. This function will first look for a explicitly passed wellSol
+%   to modify, then it will consider any wellSol residing in state0. If
+%   neither is found, it will attempt to construct one based on W.
+%
+% REQUIRED PARAMETERS:
+%   W          - Control well for which we are going to create a well
+%                solution structure.
+%
+%   model      - Subclass of ReservoirModel. Used to determine how many
+%                and which phases are present.
+%
+%   state0     - State, possibly with a wellSol given already (see
+%                initResSol/initState).
+%
+%   wellSolInit - Initial wellSol.
+%
+%
+% RETURNS:
+%   wellSol     - Well solution struct with additional fields ready for
+%                 simulation.
+%
 
-% if size(state0.s, 2) == 2
-%     model = 'OW';
-% else
-%     model = '3P';
-% end
+%{
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}
+
+wellSolGiven = (nargin == 4);
 
 if wellSolGiven
     wellSol = wellSolInit;
@@ -40,11 +79,13 @@ ws = repmat(struct(...
     'cstatus',[],...
     'cdp',    [],...
     'cqs',    []), [1, nw]);
-% additional fields depending on model
-if isfield(state, 'c') % polymer model
-   %ws(1).poly = [];
-   ws(1).qWPoly = [];
+
+ 
+% Additional model dependent fields
+if isprop(model, 'polymer') && model.polymer % polymer model
+	 [ws(:).qWPoly] = deal(0);
 end
+
 % just initialize fields that are not assigned in assignFromSchedule
 for k = 1:nw
     nConn = numel(W(k).cells);
@@ -57,13 +98,9 @@ for k = 1:nw
     % don't know wht a decent pressure is ...
     % The increment should depend on the problem and the 5bar could be a
     % pit-fall... (also used in initializeBHP in updateConnDP)
-    %if W(k).dZ(1) == 0
-        ws(k).bhp = state.pressure(W(k).cells(1)) + 5*W(k).sign*barsa;
-    %else
-    %    ws(k).bhp = -inf;
-    %end
+    ws(k).bhp = state.pressure(W(k).cells(1)) + 5*W(k).sign*barsa;
+
     irate = eps;
-    ws(k).qTs  = 0;
     if model.water
         ws(k).qWs  = W(k).sign*irate;
     end
@@ -73,14 +110,14 @@ for k = 1:nw
     if model.gas
         ws(k).qGs  = W(k).sign*irate;
     end
+    if isprop(model, 'polymer') && model.polymer
+       ws(k).qWPoly = W(k).poly*ws(k).qWs;
+    end
     
-    ws(k).mixs = W(k).compi(actPh);
+    ws(k).mixs = W(k).compi;
     ws(k).qs   = W(k).sign*ones(1, nPh)*irate;
     ws(k).cdp  = zeros(nConn,1);
     ws(k).cqs  = zeros(nConn,nPh);
-    if isfield(state, 'c') % polymer model
-       ws(k).qWPoly = 0;
-    end
 end
 end
 
@@ -94,13 +131,8 @@ for k = 1:numel(W)
     ws(k).cstatus = W(k).cstatus;
 
     tp = W(k).type;
-    if ws(k).status
-        v  = W(k).val;
-    else
-        v = 0;
-        ws(k).bhp = 0;
-        ws(k).val = 0;
-    end
+    v  = W(k).val;
+
     switch tp
         case 'bhp'
             ws(k).bhp = v;
@@ -109,10 +141,15 @@ for k = 1:numel(W)
                 ws(k).qWs = v*W(k).compi(1);
             end
             if model.oil
-                ws(k).qOs = v*W(k).compi(2);
+                ix = 1 + model.water;
+                ws(k).qOs = v*W(k).compi(ix);
             end
             if model.gas
-                ws(k).qGs = v*W(k).compi(3);
+                ix = 1 + model.water + model.oil;
+                ws(k).qGs = v*W(k).compi(ix);
+            end
+            if isprop(model, 'polymer') && model.polymer
+                ws(k).qWPoly = W(k).poly*ws(k).qWs;
             end
         case 'orat'
             ws(k).qOs = v;

@@ -1,5 +1,65 @@
-function plotWellSols(wellsols, varargin)
+function varargout = plotWellSols(wellsols, varargin)
+%Plot well solutions from AD-solvers
+%
+% SYNOPSIS:
+%   plotWellSols(wellSols, time);
+%   plotWellSols(wellSols);
+%
+% DESCRIPTION:
+%   Open interactive plotting interface for well solutions.
+%
+% REQUIRED PARAMETERS:
+%   wellSols - Cell array of NSTEP by 1, each containing a uniform struct
+%              array of well solution structures. For example, the first
+%              output from simulateScheduleAD. Can also be a cell array of
+%              such cell arrays, for comparing multiple simulation
+%              scenarios.
+%
+%  time     - (OPTIONAL) The time for each timestep. If not provided, the
+%             plotter will use step number as the x axis intead. If
+%             wellSols is a cell array of multiple datasets, time should
+%             also be a cell array, provided not all datasets use the same
+%             timesteps.
+%
+% OPTIONAL PARAMETERS (supplied in 'key'/value pairs ('pn'/pv ...)):
+%   'field'   -  Initial field for plotting (default: 'bhp').
+%
+%   'linestyles' - Cell array of line styles used for different datasets.
+%
+%   'markerstyles' - Marker array of line styles used for different
+%                    datasets. 
+%
+%   'datasetnames' - A cell array of dataset names used for the legend when
+%                    plotting multiple datasets.
+% RETURNS:
+%   fh     - figure handle to plotting panel
+%
+%   inject - function handle used to dynamically inject new datasets into
+%            the viewer (for example, from a running simulation). Same
+%            syntax as the base function, but does not support additional
+%            varargin.
+%
+% SEE ALSO:
+%   simulateScheduleAD
 
+%{
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
+
+This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
+
+MRST is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MRST is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MRST.  If not, see <http://www.gnu.org/licenses/>.
+%}
     if mod(numel(varargin), 2) == 1
         timesteps = varargin{1};
         hasTimesteps = true;
@@ -14,18 +74,7 @@ function plotWellSols(wellsols, varargin)
         wellsols = {wellsols};
     end
     
-    if isa(timesteps, 'double')
-        % Single input, wrap in cell
-        timesteps = {timesteps};
-    end
-    
-    % Single set of matching timesteps for multiple well sols
-    if numel(timesteps) ~= numel(wellsols)
-        assert(numel(timesteps) == 1);
-        tmp = cell(size(wellsols));
-        [tmp{:}] = deal(timesteps{1});
-        timesteps = tmp; clear tmp
-    end
+    timesteps = validateTimesteps(wellsols, timesteps);
     
     % Timesteps are either cumulative or individual timesteps. Try to
     % detect if timesteps are actually decreasing or repeated, even though
@@ -39,6 +88,9 @@ function plotWellSols(wellsols, varargin)
                  'plotwidth',   .6, ...
                  'linewidth',    2, ...
                  'field',       'bhp', ...
+                 'linestyles', {{'-', '--', '-.', ':'}}, ...
+                 'markerstyles', {{'o', '.', 'd', '*'}}, ...
+                 'figure',      [], ...
                  'datasetnames', {{}});
     [opt, plotvararg] = merge_options(opt, varargin{:});
     
@@ -49,6 +101,7 @@ function plotWellSols(wellsols, varargin)
     fnIndex = find(strcmpi(fn, opt.field));
     if isempty(fnIndex)
         warning(['Unknown field ''', opt.field, '''.']);
+        fnIndex = 1;
     end
     
     wellnames = arrayfun(@(x) x.name, wellsols{1}{1}, 'UniformOutput', false);
@@ -62,7 +115,11 @@ function plotWellSols(wellsols, varargin)
     end
     % Make a figure that's wider than the default.
     df = get(0, 'DefaultFigurePosition');
-    fh = figure('Position', df.*[1 1 1.75 1]);
+    if isempty(opt.figure) || ~ishandle(fh)
+        fh = figure('Position', df.*[1 1 1.75 1]);
+    else
+        fh = opt.figure;
+    end
     % We want to ensure that the lines are nice and pretty even if the user
     % has messed with the defaults.
     set(fh, 'Renderer', 'painters');
@@ -156,13 +213,19 @@ function plotWellSols(wellsols, varargin)
               'String','Absolute value', 'Callback', @drawPlot, ...
               'Position',[.01 .3 .95 .1]);
           
-    if hasTimesteps
+    % Zoom to data range
+    zoomt = uicontrol('Units', 'normalized', 'Parent', bg,...
+              'Style', 'checkbox', 'Value', 0, ...
+              'String','Zoom to data', 'Callback', @drawPlot, ...
+              'Position',[.01 .2 .95 .1]);
+
+    if hasTimesteps || nargout > 1
         % Toggle to use timesteps for spacing, otherwise the x nodes will
         % be equidistant.
         showdt = uicontrol('Units', 'normalized', 'Parent', bg,...
-                  'Style', 'checkbox', 'Value', hasTimesteps,...
+                  'Style', 'checkbox', 'Value', hasTimesteps ,...
                   'String','Use timesteps', 'Callback', @drawPlot, ...
-                  'Position',[.01 .2 .95 .1]);
+                  'Position',[.01 .1 .95 .1]);
     end
     % Line width of the plot
     uicontrol('Units', 'normalized', 'Parent', ctrlpanel,...
@@ -193,23 +256,30 @@ function plotWellSols(wellsols, varargin)
     drawPlot([], []);
     
     function drawPlot(src, event, varargin)
+        set(0, 'CurrentFigure', fh);
         fld = getFieldString(fieldsel, true);
         wells = getFieldString(wellsel, false);
         
         ndata = numel(wellsols);
         nw = numel(wells);
         
-        if nw < 8
+        if nw == 1
+            ncolors = ndata;
+        else
+            ncolors = nw;
+        end
+        
+        if ncolors < 8
             % Relatively few wells, use matlab default
-            cmap = lines(nw);
+            cmap = lines(ncolors);
         else
             % Use colorcube for more lines
-            cmap = colorcube(nw+2);
+            cmap = colorcube(ncolors+2);
         end
-        linestyles = {'-', '--', '-.', ':'};
+        linestyles = opt.linestyles;
         
         if get(hasmarker, 'Value')
-            markerstyles = {'o', '.', 'd', '*'};
+            markerstyles = opt.markerstyles;
         else
             markerstyles = {''};
         end
@@ -222,6 +292,8 @@ function plotWellSols(wellsols, varargin)
 
         tit = '';
         currentdata = cell(ndata, 1);
+        Mv = -inf;
+        mv =  inf;
         for i = 1:ndata
             for j = 1:nw
                 wname = wells{j};
@@ -232,13 +304,15 @@ function plotWellSols(wellsols, varargin)
                 if hasTimesteps && get(showdt, 'Value')
                     x = timesteps{i}/day;
                     xlabel('Time (days)')
+                    xunit = day;
                 else
                     x = 1:numel(d);
+                    xunit = 1;
                     xlabel('Step #')
                 end
                 
                 if get(csum, 'Value')
-                    d = cumtrapz(x, d);
+                    d = cumtrapz(x*xunit, d);
                 end
                 
                 if get(abst, 'Value')
@@ -255,7 +329,19 @@ function plotWellSols(wellsols, varargin)
                     linew = 1;
                 end
                 
-                plot(x, d, [m, line], 'LineWidth', linew, 'color', cmap(j, :), plotvararg{:});
+                if isfield(wellsols{i}{1}, 'status')
+                    % Mask away inactive data points
+                    status = getData(wname, wellnames, 'status', wellsols{i});
+                    d(status == 0, :) = nan;
+                end
+                if nw == 1 
+                    c = cmap(i, :);
+                else
+                    c = cmap(j, :);
+                end
+                plot(x, d, [m, line], 'LineWidth', linew, 'color', c, plotvararg{:});
+                Mv = max(Mv, max(d));
+                mv = min(mv, min(d));
                 
                 tmp = wname;
                 if ndata > 1
@@ -270,7 +356,8 @@ function plotWellSols(wellsols, varargin)
         if ~isempty(legh) && ishandle(legh) && numel(wells) == numel(prevWells)
             lpos = get(legh, 'Position');
         else
-            lpos = 'NorthEast';
+            % lpos = 'NorthEast';
+            lpos = 'Best';
         end
         
         if get(useleg, 'Value')
@@ -296,6 +383,21 @@ function plotWellSols(wellsols, varargin)
         end
         
         axis tight
+        if ~get(zoomt, 'Value')
+            % We should ensure that zero axis is included
+            sM = sign(Mv); sm = sign(mv);
+            if sM == sm
+                if sM > 0
+                    ylm = [0, Mv];
+                else
+                    ylm = [mv, 0];
+                end
+            else
+                ylm = [min(mv, 0), max(Mv, 0)];
+            end
+            ylim(ylm + [-eps, eps]);
+        end
+
         prevWells = wells;
     end
 
@@ -320,7 +422,12 @@ function plotWellSols(wellsols, varargin)
        dims = get(fh, 'Position');
        newdims = dims.*[1, 1, pw + dap(1), 1];
        tmpfig = figure('Position', newdims);
-       ax = copyobj(plotaxis, tmpfig);
+       if isnan(double(legh))
+           ax = copyobj(plotaxis, tmpfig);
+       else
+           ax = copyobj([legh, plotaxis], tmpfig);
+           ax = ax(2);
+       end
        % Approx same dimensions as the gui reference
        set(ax, 'Position', dap)
        
@@ -361,6 +468,25 @@ function plotWellSols(wellsols, varargin)
         export2wsdlg([opt.datasetnames, 'Selected well names'], ...
                      [varnames, 'wellnames'], ...
                      {currentdata{:}, wells})
+    end
+
+    function injectDataset(ws, steps)
+        if nargin == 1
+            hasTimesteps = false;
+            steps = [];
+        else
+            hasTimesteps = true;
+        end
+        wellsols = ws;
+        timesteps = validateTimesteps(wellsols, steps);
+        drawPlot([], []);
+    end
+    inject = @(ws, varargin) injectDataset(ws, varargin{:});
+    if nargout > 0
+        varargout{1} = fh;
+        if nargout > 1
+            varargout{2} = inject;
+        end
     end
 end
 
@@ -453,4 +579,19 @@ function d = getData(wellname, wellnames, field, ws)
     ind = find(strcmpi(wellname, wellnames));
     assert(numel(ind) == 1, 'Multiple wells with same name!');
     d = cellfun(@(x) x(ind).(field), ws);
+end
+
+function timesteps = validateTimesteps(wellsols, timesteps)
+    if isa(timesteps, 'double')
+        % Single input, wrap in cell
+        timesteps = {timesteps};
+    end
+    
+    % Single set of matching timesteps for multiple well sols
+    if numel(timesteps) ~= numel(wellsols)
+        assert(numel(timesteps) == 1);
+        tmp = cell(size(wellsols));
+        [tmp{:}] = deal(timesteps{1});
+        timesteps = tmp; clear tmp
+    end
 end

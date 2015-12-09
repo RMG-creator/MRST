@@ -55,7 +55,7 @@ function gradients = computeGradientAdjointAD(state0, states, model, schedule, g
 %   computeGradientPerturbationAD, simulateScheduleAD
 
 %{
-Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -73,7 +73,7 @@ You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 %}
 
-    opt = struct('ControlVariables', 'well', ...
+    opt = struct('ControlVariables', {{'well'}}, ...
                  'LinearSolver',     []);
     opt = merge_options(opt, varargin{:});
     
@@ -95,6 +95,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     gradstep = cell(nstep, ncv);
     nt = nstep;
     for step = nt:-1:1
+        fprintf('Solving reverse mode step %d of %d\n', nt - step + 1, nt);
         [dg, grad, report] = model.solveAdjoint(linsolve, getState, ...
                                          getObjective, schedule, grad, step);
         gradstep(step, :) = getRequestedGradients(dg, report, opt.ControlVariables);

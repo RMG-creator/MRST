@@ -26,7 +26,7 @@ classdef SimpleTimeStepSelector < handle
 %   IterationCountTimeStepSelector, NonLinearSolver
 
 %{
-Copyright 2009-2014 SINTEF ICT, Applied Mathematics.
+Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
 This file is part of The MATLAB Reservoir Simulation Toolbox (MRST).
 
@@ -81,6 +81,10 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         % Previous control seen by the selector used to determine when
         % controls change.
         previousControl
+        % Reset when controls change
+        resetOnControlsChanged
+        % Flag indicating that we are at the start of the simulation
+        isFirstStep
     end
         
     
@@ -96,6 +100,8 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             selector.firstRampupStep = inf;
             selector.firstRampupStepRelative = 1;
             
+            selector.resetOnControlsChanged = false;
+
             selector.verbose = mrstVerbose();
             
             selector = merge_options(selector, varargin{:});
@@ -104,6 +110,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                    selector.firstRampupStepRelative >  0);
             
             selector.isStartOfCtrlStep = true;
+            selector.isFirstStep       = true;
             selector.controlsChanged = true;
             selector.stepLimitedByHardLimits = true;
         end
@@ -123,7 +130,8 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         end
         
         function dt = pickTimestep(selector, dt, model, solver)
-            if selector.controlsChanged
+            if selector.controlsChanged && ...
+              (selector.resetOnControlsChanged || selector.isFirstStep);
                 % First relative check
                 dt = min(dt, selector.firstRampupStepRelative*dt);
                 % Then absolute check
@@ -160,6 +168,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             % If we originally were at the start of a control step, we are
             % no longer at the beginning. Reset those indicators.
             selector.isStartOfCtrlStep = false;
+            selector.isFirstStep = false;
             selector.controlsChanged = false;
         end
         
@@ -172,16 +181,18 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             if isempty(prev) || prev.controlId ~= control.controlId
                 % We are at the beginning of a new control step and should
                 % reset the selector accordingly
-                selector.reset();
+                if selector.resetOnControlsChanged
+                    selector.reset();
+                end
                 selector.controlsChanged = true;
                 selector.previousControl = control;
             else
                 selector.controlsChanged = false;
             end
         end
-        
+
         function dt = computeTimestep(selector, dt, model, solver) %#ok
-            % Compute timestep dynamically - does nothing for base class
+            % Compute timestep dynamically - does nothing for base class    
         end
     end
 end

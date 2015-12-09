@@ -11,10 +11,9 @@ state    = testcase.state0;
 schedule = testcase.schedule;
 rock     = testcase.rock;
 G        = model.G;
-state.wellSol = initWellSolAD(schedule.control(1).W, model, state);
 
 
-% lim = 20;
+% lim = 10;
 % schedule.step.val = schedule.step.val(1:lim);
 % schedule.step.control = schedule.step.control(1:lim);
 
@@ -26,20 +25,15 @@ clear pressureModel transportModel seqModel
 mrstModule add blackoil-sequential
 
 
-tol = 1e-5;
-if isa(model, 'TwoPhaseOilWaterModel')
-    pressureModel  = PressureOilWaterModel(G, rock, model.fluid, 'nonlinearTolerance', tol);
-    transportModel = TransportOilWaterModel(G, rock, model.fluid, 'nonlinearTolerance', tol);
-else
-    pressureModel  = PressureBlackOilModel(G, rock, model.fluid, 'nonlinearTolerance', tol);
-    transportModel = TransportBlackOilModel(G, rock, model.fluid, 'nonlinearTolerance', tol, ...
-        'conserveWater', false, 'conserveOil', true, 'conserveGas', true);
-end
-
-
 amgSolver = AGMGSolverAD();
 mrstVerbose on
-seqModel = SequentialPressureTransportModel(pressureModel, transportModel, 'pressureLinearSolver', amgSolver);
+seqModel = getSequentialModelFromFI(model, 'pressureLinearSolver', amgSolver);
+
+model.extraWellSolOutput = true;
+seqModel.pressureModel.extraWellSolOutput = true;
+seqModel.transportModel.extraWellSolOutput = true;
+
+seqModel.stepFunctionIsLinear = true;
 
 timer = tic();
 [ws_split, states_split, report_split] = simulateScheduleAD(state, seqModel, schedule, 'NonLinearSolver', solver);
@@ -53,16 +47,23 @@ timer = tic();
 [ws_fi, states_fi, report_fi] = simulateScheduleAD(state, model, schedule, 'LinearSolver', cprsolver);
 t_fi = toc(timer);
 
+%% Run schedule with outer loop enabled
+seqModel.stepFunctionIsLinear = false;
+seqModel.outerTolerance = 1e-5;
+seqModel.outerCheckWellConvergence = false;
+timer = tic();
+[ws_outer, states_outer, report_outer] = simulateScheduleAD(state, seqModel, schedule, 'NonLinearSolver', solver);
+t_outer = toc(timer);
 
 
 %% Plot the well solutions and simulator states
 % We setup interactive viewers for both well solutions and the reservoir
 % states.
 
-time = {report_fi.ReservoirTime, report_split.ReservoirTime}; 
-ws = {ws_fi, ws_split};
+time = {report_fi.ReservoirTime, report_split.ReservoirTime, report_outer.ReservoirTime}; 
+ws = {ws_fi, ws_split, ws_outer};
 
-plotWellSols(ws, time, 'datasetnames', {'FI', 'sequential'})
+plotWellSols(ws, time, 'datasetnames', {'FI', 'sequential', 'outerloop'})
 %%
 for i = 1:2
     if i == 1

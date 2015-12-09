@@ -2,21 +2,19 @@ function [problem, state] = pressureEquationBlackOil(state0, state, model, dt, d
 
 opt = struct('Verbose', mrstVerbose, ...
              'reverseMode', false,...
-             'scaling', [],...
              'resOnly', false,...
-             'history', [],...
              'redistributeRS', false, ...
-             'iteration', -1, ...
-             'stepOptions', []);  % Compatibility only
+             'staticWells',  false, ...
+             'propsPressure', [], ...
+             'iteration', -1);
 
 opt = merge_options(opt, varargin{:});
 
-W = drivingForces.Wells;
+W = drivingForces.W;
 assert(isempty(drivingForces.bc) && isempty(drivingForces.src))
 
 s = model.operators;
 f = model.fluid;
-G = model.G;
 
 disgas = model.disgas;
 vapoil = model.vapoil;
@@ -36,8 +34,10 @@ qGs    = vertcat(wellSol.qGs);
 
 
 %Initialization of independent variables ----------------------------------
-st  = getCellStatusVO(state,  1-sW-sG,   sW,  sG,  disgas, vapoil);
-st0 = getCellStatusVO(state0, 1-sW0-sG0, sW0, sG0, disgas, vapoil);
+st  = getCellStatusVO(model, state,  1-sW-sG,   sW,  sG);
+st0 = getCellStatusVO(model, state0, 1-sW0-sG0, sW0, sG0);
+p_prop = opt.propsPressure;
+otherPropPressure = ~isempty(p_prop);
 if ~opt.resOnly,
     if ~opt.reverseMode,
         % define primary varible x and initialize
@@ -45,16 +45,19 @@ if ~opt.resOnly,
 
         [p, qWs, qOs, qGs, bhp] = ...
             initVariablesADI(p, qWs, qOs, qGs, bhp);
+        if ~otherPropPressure
+            p_prop = p;
+        end
         % define sG, rs and rv in terms of x
         sG = st{2}.*(1-sW) + st{3}.*x;
         if disgas
-            rsSat = f.rsSat(p);
+            rsSat = f.rsSat(p_prop);
             rs = (~st{1}).*rsSat + st{1}.*x;
         else % otherwise rs = rsSat = const
             rsSat = rs;
         end
         if vapoil
-            rvSat = f.rvSat(p);
+            rvSat = f.rvSat(p_prop);
             rv = (~st{2}).*rvSat + st{2}.*x;
         else % otherwise rv = rvSat = const
             rvSat = rv;
@@ -63,227 +66,200 @@ if ~opt.resOnly,
         assert(0, 'Backwards solver not supported for splitting');
     end
 else % resOnly-case compute rsSat and rvSat for use in well eqs
-    if disgas, rsSat = f.rsSat(p); else rsSat = rs; end
-    if vapoil, rvSat = f.rvSat(p); else rvSat = rv; end
+    if isempty(p_prop)
+        p_prop = p;
+    end
+    if disgas, rsSat = f.rsSat(p_prop); else rsSat = rs; end
+    if vapoil, rvSat = f.rvSat(p_prop); else rvSat = rv; end
 end
 sO  = 1- sW  - sG;
 sO0 = 1- sW0 - sG0;
 
 if disgas && opt.redistributeRS
-    [sG, rs] = redistributeRS(f, p, rs, sG, sO);
+    [sG, rs] = redistributeRS(f, p_prop, rs, sG, sO, ~st{1});
+    sO  = 1 - sW  - sG;
+    st  = getCellStatusVO(model, state,  sO,   sW,  sG);
 end
 primaryVars = {'pressure', 'qWs', 'qOs', 'qGs', 'bhp'};
 
-    %----------------------------------------------------------------------
-    %check for p-dependent tran mult:
-    trMult = 1;
-    if isfield(f, 'tranMultR'), trMult = f.tranMultR(p); end
+% FLIUD PROPERTIES ---------------------------------------------------
+[krW, krO, krG] = model.evaluteRelPerm({sW, sO, sG});
 
-    %check for p-dependent porv mult:
-    pvMult = 1; pvMult0 = 1;
-    if isfield(f, 'pvMultR')
-        pvMult =  f.pvMultR(p);
-        pvMult0 = f.pvMultR(p0);
-    end
+% Multipliers for properties
+[pvMult, transMult, mobMult, pvMult0] = getMultipliers(model.fluid, p_prop, p0);
 
-    %check for capillary pressure (p_cow)
-    pcOW = 0;
-    if isfield(f, 'pcOW')
-        pcOW  = f.pcOW(sW);
-    end
-    %check for capillary pressure (p_cog)
-    pcOG = 0;
-    if isfield(f, 'pcOG')
-        pcOG  = f.pcOG(sG);
-    end
+% Modifiy relperm by mobility multiplier (if any)
+krW = mobMult.*krW; krO = mobMult.*krO; krG = mobMult.*krG;
 
-    % FLIUD PROPERTIES ---------------------------------------------------
-    [krW, krO, krG] = model.evaluteRelPerm({sW, sO, sG});
-    grav  = gravity;
-    gdz = s.Grad(G.cells.centroids) * grav';
+% Compute transmissibility
+T = s.T.*transMult;
 
-    % WATER PROPS (calculated at oil pressure)
-    bW     = f.bW(p);
-    rhoW   = bW.*f.rhoWS;
-    % rhoW on face, avarge of neighboring cells (E100, not E300)
-    rhoWf  = s.faceAvg(rhoW);
-    mobW   = trMult.*krW./f.muW(p);
-    dpW    = s.Grad(p-pcOW) - rhoWf.*gdz;
+% Gravity gradient per face
+gdz = model.getGravityGradient();
+
+% Evaluate water properties
+[vW, bW, mobW, rhoW, pW, upcw, dpW] = getFluxAndPropsWater_BO(model, p_prop, sW, krW, T, gdz);
+bW0 = f.bW(p0);
+
+% Evaluate oil properties
+[vO, bO, mobO, rhoO, pO, upco, dpO] = getFluxAndPropsOil_BO(model, p_prop, sO, krO, T, gdz, rs, ~st{1});
+bO0 = getbO_BO(model, p0, rs0, ~st0{1});
+
+% Evaluate gas properties
+bG0 = getbG_BO(model, p0, rv0, ~st0{2});
+[vG, bG, mobG, rhoG, pG, upcg, dpG] = getFluxAndPropsGas_BO(model, p_prop, sG, krG, T, gdz, rv, ~st{2});
+
+if otherPropPressure
+    % We have used a different pressure for property evaluation, undo the
+    % effects of this on the fluxes.
+    dp_diff = s.Grad(p) - s.Grad(p_prop);
     
-    % water upstream-index
-    upcw  = (double(dpW)<=0);
-    vW   = -s.faceUpstr(upcw, mobW).*s.T.*dpW;
-    bWvW =  s.faceUpstr(upcw, bW).*vW;
-    if any(bW < 0)
-        warning('Negative water compressibility present!')
-    end
-    
-    % OIL PROPS
-    if disgas
-        bO  = f.bO(p, rs, ~st{1});
-        muO = f.muO(p, rs, ~st{1});
-    else
-        bO  = f.bO(p);
-        muO = f.muO(p);
-    end
-    if any(bO < 0)
-        warning('Negative oil compressibility present!')
-    end
-    rhoO   = bO.*(rs*f.rhoGS + f.rhoOS);
-    rhoOf  = s.faceAvg(rhoO);
-    mobO   = trMult.*krO./muO;
-    dpO    = s.Grad(p) - rhoOf.*gdz;
-    % oil upstream-index
-    upco = (double(dpO)<=0);
-    vO     = -s.faceUpstr(upco, mobO).*s.T.*dpO;
-    bOvO   =  s.faceUpstr(upco, bO).*vO;
-    if disgas,
-        rsbOvO = s.faceUpstr(upco, rs).*bOvO;
-    end
+    vW = -s.faceUpstr(upcw, mobW).*s.T.*(dpW + dp_diff);
+    vO = -s.faceUpstr(upco, mobO).*s.T.*(dpO + dp_diff);
+    vG = -s.faceUpstr(upcg, mobG).*s.T.*(dpG + dp_diff);
+end
 
-    % GAS PROPS (calculated at oil pressure)
-    if vapoil
-        bG  = f.bG(p, rv, ~st{2});
-        muG = f.muG(p, rv, ~st{2});
-    else
-        bG  = f.bG(p);
-        muG = f.muG(p);
-    end
-    if any(bG < 0)
-        warning('Negative gas compressibility present!')
-    end
-    rhoG   = bG.*(rv*f.rhoOS + f.rhoGS);
-    rhoGf  = s.faceAvg(rhoG);
-    mobG   = trMult.*krG./muG;
-    dpG    = s.Grad(p+pcOG) - rhoGf.*gdz;
-    % gas upstream-index
-    upcg    = (double(dpG)<=0);
-    vG     = -s.faceUpstr(upcg, mobG).*s.T.*dpG;
-    bGvG   =  s.faceUpstr(upcg, bG).*vG;
-    if vapoil, 
-        rvbGvG = s.faceUpstr(upcg, rv).*bGvG;
-    end
-    
-    % These are needed in transport solver, so we output them regardless of
-    % any flags set in the model.
-    state = model.storeFluxes(state, vW, vO, vG);
-    state = model.storeUpstreamIndices(state, upcw, upco, upcg);
-    
-    % EQUATIONS -----------------------------------------------------------
 
-    bW0 = f.bW(p0);
-    if disgas, bO0 = f.bO(p0, rs0, ~st0{1}); else bO0 = f.bO(p0); end
-    if vapoil, bG0 = f.bG(p0, rv0, ~st0{2}); else bG0 = f.bG(p0); end
+% These are needed in transport solver, so we output them regardless of
+% any flags set in the model.
+state = model.storeFluxes(state, vW, vO, vG);
+state = model.storeUpstreamIndices(state, upcw, upco, upcg);
+if model.extraStateOutput
+    state = model.storebfactors(state, bW, bO, bG);
+    state = model.storeMobilities(state, mobW, mobO, mobG);
+end
+% EQUATIONS -----------------------------------------------------------
 
-    % oil eq:
-    if vapoil
-        oil = (s.pv/dt).*( pvMult.* (bO.* sO  + rv.* bG.* sG) - ...
-                              pvMult0.*(bO0.*sO0 + rv0.*bG0.*sG0) ) + ...
-                 s.Div(bOvO + rvbGvG);
-    else
-        oil = (s.pv/dt).*( pvMult.*bO.*sO - pvMult0.*bO0.*sO0 ) + s.Div(bOvO);
+% Upstream weight b factors and multiply by interface fluxes to obtain the
+% fluxes at standard conditions.
+bOvO = s.faceUpstr(upco, bO).*vO;
+bWvW = s.faceUpstr(upcw, bW).*vW;
+bGvG = s.faceUpstr(upcg, bG).*vG;
+
+% The first equation is the conservation of the water phase. This equation is
+% straightforward, as water is assumed to remain in the aqua phase in the
+% black oil model.
+wat = (s.pv/dt).*( pvMult.*bW.*sW - pvMult0.*bW0.*sW0 ) + s.Div(bWvW);
+
+% Second equation: mass conservation equation for the oil phase at surface
+% conditions. This is any liquid oil at reservoir conditions, as well as
+% any oil dissolved into the gas phase (if the model has vapoil enabled).
+if model.vapoil
+    % The model allows oil to vaporize into the gas phase. The conservation
+    % equation for oil must then include the fraction present in the gas
+    % phase.
+    rvbGvG = s.faceUpstr(upcg, rv).*bGvG;
+    % Final equation
+    oil = (s.pv/dt).*( pvMult.* (bO.* sO  + rv.* bG.* sG) - ...
+        pvMult0.*(bO0.*sO0 + rv0.*bG0.*sG0) ) + ...
+        s.Div(bOvO + rvbGvG);
+else
+    oil = (s.pv/dt).*( pvMult.*bO.*sO - pvMult0.*bO0.*sO0 ) + s.Div(bOvO);
+end
+
+% Conservation of mass for gas. Again, we have two cases depending on
+% whether the model allows us to dissolve the gas phase into the oil phase.
+if model.disgas
+    % The gas transported in the oil phase.
+    rsbOvO = s.faceUpstr(upco, rs).*bOvO;
+    
+    gas = (s.pv/dt).*( pvMult.* (bG.* sG  + rs.* bO.* sO) - ...
+        pvMult0.*(bG0.*sG0 + rs0.*bO0.*sO0 ) ) + ...
+        s.Div(bGvG + rsbOvO);
+else
+    gas = (s.pv/dt).*( pvMult.*bG.*sG - pvMult0.*bG0.*sG0 ) + s.Div(bGvG);
+end
+
+% phaseEqs = {wat, oil, gas};
+% % Add in any fluxes / source terms prescribed as boundary conditions.
+% phaseEqs = addFluxesFromSourcesAndBC(model, phaseEqs, ...
+%                                        {pW, p, pG},...
+%                                        {rhoW,     rhoO, rhoG},...
+%                                        {mobW,     mobO, mobG}, ...
+%                                        {bW, bO, bG},  ...
+%                                        {sW, sO, sG}, ...
+%                                        drivingForces);
+% [wat, oil, gas] = phaseEqs{:};
+
+[eqs, names, types] = deal(cell(1, 5));
+% well equations
+if ~isempty(W)
+    wc    = vertcat(W.cells);
+    perf2well = getPerforationToWellMapping(W);
+    
+    wm = model.wellmodel;
+    [rw, rSatw] = wm.getResSatWell(model, wc, rs, rv, rsSat, rvSat);
+    
+    if opt.staticWells
+        q = vertcat(state.wellSol.flux);
         
-    end
-    
-    
-    % water eq:
-    wat = (s.pv/dt).*( pvMult.*bW.*sW - pvMult0.*bW0.*sW0 ) + s.Div(bWvW);
-    
-    % gas eq:
-    if disgas
-        gas = (s.pv/dt).*( pvMult.* (bG.* sG  + rs.* bO.* sO) - ...
-                              pvMult0.*(bG0.*sG0 + rs0.*bO0.*sO0 ) ) + ...
-                 s.Div(bGvG + rsbOvO);
+        qW = q(:, 1);
+        qO = q(:, 2);
+        qG = q(:, 2);
+        
+        cqs = {...
+               bW(wc).*qW, ...
+               bO(wc).*(qO + qG.*rw{2}), ...
+               bG(wc).*(qG + qO.*rw{1}), ...
+               };
+
     else
-        gas = (s.pv/dt).*( pvMult.*bG.*sG - pvMult0.*bG0.*sG0 ) + s.Div(bGvG);
-    end
-    
-    
-    
-    [eqs, names, types] = deal(cell(1, 5));
-    % well equations
-    if ~isempty(W)
-        wm = WellModel();
-        wc    = vertcat(W.cells);
-        nperf = numel(wc);
+        % Store cell wise well variables in cell arrays and send to ewll
+        % model to get the fluxes and well control equations.
         pw    = p(wc);
         rhows = [f.rhoWS, f.rhoOS, f.rhoGS];
         bw    = {bW(wc), bO(wc), bG(wc)};
-        if ~disgas
-            rsw = ones(nperf,1)*rs; rsSatw = ones(nperf,1)*rsSat; %constants
-        else
-            rsw = rs(wc); rsSatw = rsSat(wc);
-        end
-        if ~vapoil
-            rvw = ones(nperf,1)*rv; rvSatw = ones(nperf,1)*rvSat; %constants
-        else
-            rvw = rv(wc); rvSatw = rvSat(wc);
-        end
-        rw    = {rsw, rvw};
-        rSatw = {rsSatw, rvSatw};
+
+        
         mw    = {mobW(wc), mobO(wc), mobG(wc)};
-        s = {sW, 1 - sW - sG, sG};
+        s = {sW(wc), sO(wc), sG(wc)};
 
         [cqs, weqs, ctrleqs, wc, state.wellSol, cqr]  = wm.computeWellFlux(model, W, wellSol, ...
-                                             bhp, {qWs, qOs, qGs}, pw, rhows, bw, mw, s, rw,...
-                                             'maxComponents', rSatw, ...
-                                             'nonlinearIteration', opt.iteration);
+            bhp, {qWs, qOs, qGs}, pw, rhows, bw, mw, s, rw,...
+            'maxComponents', rSatw, ...
+            'nonlinearIteration', opt.iteration);
         eqs(2:4) = weqs;
         eqs{5} = ctrleqs;
 
         qW = double(cqr{1});
         qO = double(cqr{2});
         qG = double(cqr{3});
-        
-        oil(wc) = oil(wc) - cqs{2}; % Add src to oil eq
-        wat(wc) = wat(wc) - cqs{1}; % Add src to water eq
-        gas(wc) = gas(wc) - cqs{3}; % Add src to gas eq
 
         names(2:5) = {'oilWells', 'waterWells', 'gasWells', 'closureWells'};
         types(2:5) = {'perf', 'perf', 'perf', 'well'};
     end
-    % Create actual pressure equation
-    if disgas && vapoil
-        cfac = 1./(1 - rs.*rv);
-    else
-        cfac = 1;
-    end
     
-    if 1
-        a_w = 1./bW;
-        a_o = cfac.*(1./bO - rs./bG);
-        a_g = cfac.*(1./bG - rv./bO);
+    wat(wc) = wat(wc) - cqs{1}; % Add src to water eq
+    oil(wc) = oil(wc) - cqs{2}; % Add src to oil eq
+    gas(wc) = gas(wc) - cqs{3}; % Add src to gas eq
 
-        eqs{1} = oil.*a_o + wat.*a_w + gas.*a_g;
-    else
-        a_w = 1./bW;
-        a_o = 1./bO - rs./bG;
-        a_g = 1./bG;
-        
-        wat = wat.*a_w;
-        oil = oil.*a_o;
-        gas = gas.*a_g;
-        
-        eqs{1} = wat + oil + gas;
-    end
-    names{1} = 'pressure';
-    types{1} = 'cell';
-    
-    % Store fluxes for the transport solver
-    perf2well = getPerforationToWellMapping(W);
-    fluxt = qW + qO + qG;
-    for i = 1:numel(W)
-        wp = perf2well == i;
-        state.wellSol(i).flux = fluxt(wp);
-    end
-    
-    problem = LinearizedProblem(eqs, types, names, primaryVars, state, dt);
+end
+% Create actual pressure equation
+cfac = 1./(1 - disgas*vapoil*rs.*rv);
+
+a_w = 1./bW;
+a_o = cfac.*(1./bO - rs./bG);
+a_g = cfac.*(1./bG - rv./bO);
+
+eqs{1} = oil.*a_o + wat.*a_w + gas.*a_g;
+
+names{1} = 'pressure';
+types{1} = 'cell';
+
+% Store fluxes for the transport solver
+fluxt = qW + qO + qG;
+for i = 1:numel(W)
+    wp = perf2well == i;
+    state.wellSol(i).flux = fluxt(wp);
+end
+problem = LinearizedProblem(eqs, types, names, primaryVars, state, dt);
+
 end
 
 
-function [sG, rs] = redistributeRS(f, p, rs, sG, sO)
+function [sG, rs] = redistributeRS(f, p, rs, sG, sO, isSat)
     rsSat = f.rsSat(p);
-    isSat = rs >= rsSat;
+    % isSat = rs >= rsSat;
 
     bG = f.bG(p);
     bO = f.bO(p, rs, isSat);
