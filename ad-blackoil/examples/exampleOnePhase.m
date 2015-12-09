@@ -7,8 +7,7 @@ mrstModule add ad-props ad-core ad-blackoil ad-fi
 G=cartGrid([100 100],[4000 300]);
 
 % Set up the rock structure
-rock.perm  = 1000*milli*ones(G.cells.num,1)*darcy;
-rock.poro  = ones(G.cells.num,1)*0.1;
+rock = makeRock(G, 1*darcy, 0.1);
 
 % Create fluid
 fluid = initSimpleADIFluid('mu', [1 0.1 1], 'rho', [1 1 1], 'n', [2 2 2]);

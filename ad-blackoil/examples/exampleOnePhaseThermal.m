@@ -1,15 +1,16 @@
 %% Read the problem from a deckfile
 
-mrstModule add ad-props  ad-core ad-blackoil
+mrstModule add ad-props ad-core ad-blackoil ad-fi
 
 % Create grid
 %G=cartGrid([100 10 1],[1000 100 10])
 G=cartGrid([100 100],[4000 300]);
 
 % Set up the rock structure
-rock.perm  = 1000*milli*ones(G.cells.num,1)*darcy;
-rock.poro  = ones(G.cells.num,1)*0.1;
-rock.lambdaR=ones(G.cells.num,1)*4;
+% Set up the rock structure
+rock         = makeRock(G, 1*darcy, 0.1);
+rock.lambdaR = repmat(4, [G.cells.num, 1]);
+
 % Create fluid
 fluid = initSimpleADIFluid('mu', [1 0.1 1], 'rho', [1 1 1], 'n', [2 2 2]);
 fluid.relPerm =@(sW) deal(fluid.krW(sW),fluid.krO(1-sW));
