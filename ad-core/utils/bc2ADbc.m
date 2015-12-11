@@ -1,4 +1,6 @@
 function bcAD = bc2ADbc(G,bc)
+%Undocumented utility function
+
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
 
