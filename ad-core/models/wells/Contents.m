@@ -1,8 +1,12 @@
+% WELLS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   computeWellContributionsNew - Setup well (residual) equations and compute corresponding source terms.
+%   setupWellControlEquations   - Setup well controll (residual) equations
+%   updateConnectionDP          - Explicit update of hydrostatic pressure difference between bottom hole
+%   updateSwitchedControls      - Update active well controls based on well solution structure
+%   updateSwitchedWellControls  - Check for violated well limits and switch controls.
+%   WellModel                   - Well model for three phase flow with black oil-style fluids
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

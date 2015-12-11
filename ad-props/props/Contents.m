@@ -1,11 +1,31 @@
 % Files
-%   assignDENSITY.m    - dens of size ntpvtx3
-%   assignPVCDO.m      - por  = pvcdo(pvtnum,1);  ref pres
-%   assignPVDO.m       - f.muO = @(po, varargin)muO(po, pvdo, reg, varargin{:});
-%   assignPVTW.m       - pwr  = pvtw(pvtnum,1);  ref pres
-%   assignRelPerm.m    - if ~isfield(f, 'krOG')       two-phase water/oil
-%   assignSOF3.m       - f.relperm3ph = @(sw, sg, varargin)relperm3ph(sw, sg, f, varargin);
-%   initDeckADIFluid.m - props
+%   assignDENSITY     - dens of size ntpvtx3
+%   assignPLMIXPAR    - Undocumented utility function
+%   assignPLYADS      - Undocumented utility function
+%   assignPLYADSm     - Undocumented utility function
+%   assignPLYMAX      - Undocumented utility function
+%   assignPLYROCK     - Undocumented utility function
+%   assignPLYSHEAR    - Undocumented utility function
+%   assignPLYVISC     - Undocumented utility function
+%   assignPVCDO       - Undocumented utility function
+%   assignPVDO        - Undocumented utility function
+%   assignPVTW        - Undocumented utility function
+%   assignPVDG        - Undocumented utility function
+%   assignPVTG        - Undocumented utility function
+%   assignPVTO        - Undocumented utility function
+%   assignRelPermScal - Undocumented utility function
+%   assignRelPerm     - Undocumented utility function
+%   assignROCK        - Undocumented utility function
+%   assignROCKTAB     - Undocumented utility function
+%   assignRSCONSTT    - Undocumented utility function
+%   assignSGFN        - Undocumented utility function
+%   assignSGOF        - Undocumented utility function
+%   assignSOF2        - Undocumented utility function
+%   assignSOF3        - Undocumented utility function
+%   assignSWFN        - Undocumented utility function
+%   assignSWOF        - Undocumented utility function
+%   assignTLMIXPAR    - Undocumented utility function
+%   initDeckADIFluid  - Undocumented utility function
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

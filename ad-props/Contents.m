@@ -1,8 +1,7 @@
+% AD-PROPS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   initSimpleADIFluid - Make a structure representing a three-component fluid (water, oil, gas)
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

@@ -1,6 +1,7 @@
 % Files
-%   basisOW.m   - function phi = basisOW(states, varargin), efrac_p, efrac_s, n_p, n_s)
-%   createPod.m - [V,S,W] = svd(X);  bruk econ?
+%   basisOW   - efrac_(s/p) fraction of energy to be included (upper bound) for
+%   createPod - Undocumented utility function
+%   snapshots - Undocumented utility function
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

@@ -1,8 +1,11 @@
+% UTILS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   control2schedule - Convert control vector u to schedule
+%   evalObjective    - Objective (and gradient) evaluation function based on input control vector u
+%   scaleConstraints - Linear constraint scaling
+%   schedule2control - Convert schedule to control vector
+%   setupConstraints - Setup linear constraints for scaled problem. Assumes linConst applies to
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

@@ -1,8 +1,9 @@
+% UPSCALE
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   upscaleModelTPFA - Upscale a fine model into a coarser version using a partition vector
+%   upscaleSchedule  - Upscale a schedule to a coarser model
+%   upscaleState     - Create a upscaled state by simple processing of values
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

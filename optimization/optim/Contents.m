@@ -1,8 +1,9 @@
+% OPTIM
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   argmaxCubic - find max of cubic polynomial through p1, p2
+%   lineSearch  - lineSearch -- helper function which performs line search based on
+%   unitBoxBFGS - Iterative line search optimization using BFGS intended for scaled
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

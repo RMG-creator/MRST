@@ -1,8 +1,12 @@
+% MODELS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   OilWaterPolymerModel           - Oil/water/polymer system
+%   ThreePhaseBlackOilModel        - Three phase with optional dissolved gas and vaporized oil
+%   ThreePhaseBlackOilPolymerModel - ThreePhaseBlackOil/polymer system
+%   TwoPhaseOilWaterModel          - Two phase oil/water system without dissolution
+%   WaterModel                     - Two phase oil/water system without dissolution
+%   WaterThermalModel              - Two phase oil/water system without dissolution
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

@@ -1,8 +1,15 @@
+% UTILS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   dinterpReg           - Interpolate table with multiple regions
+%   extendTab            - Undocumented utility function
+%   getRegMap            - Retrieve region mapping
+%   handleRegions        - Undocumented utility function
+%   interp2DPVT          - Undocumented utility function
+%   interp2DTable        - Undocumented utility function
+%   interpReg            - Undocumented utility function
+%   interpRegPVT         - Undocumented utility function
+%   interpRegular2DTable - Undocumented utility function
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

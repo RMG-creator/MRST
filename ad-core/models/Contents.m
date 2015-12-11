@@ -1,8 +1,8 @@
+% MODELS
+%
 % Files
-%   NPVBlackOil  - Compute net present value of a schedule with well solutions
-%   NPVOW        - Compute net present value of a schedule with well solutions
-%   NPVOWPolymer - Compute net present value of a schedule with well solutions
-%   NPVVO        - Compute net present value of a schedule with well solutions
+%   PhysicalModel  - Base class for physical models
+%   ReservoirModel - Base class for physical models
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.

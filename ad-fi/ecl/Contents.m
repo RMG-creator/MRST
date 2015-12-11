@@ -1,8 +1,9 @@
 % Files
-%   eclOut2mrst.m      - full grid to active grid mapping
-%   readFieldUnFmt.m   - Extract next field from an unformatted ECLIPSE output file
-%   readSummaryLocal.m - estimate number of ministeps
-%   smryGUI.m          - SMRYGUI M-file for smryGUI.fig
+%   eclOut2mrst      - Undocumented utility function
+%   readFieldUnFmt   - Extract next field from an unformatted ECLIPSE output file
+%   readRestartLocal - Undocumented utility function
+%   readSummaryLocal - Undocumented utility function
+%   smryGUI          - M-file for smryGUI.fig
 
 %{
 Copyright 2009-2015 SINTEF ICT, Applied Mathematics.
