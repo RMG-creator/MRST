@@ -16,7 +16,7 @@
 %
 % We have put most of the boilerplate setup into the setupSPE9 function.
 
-mrstModule add ad-blackoil ad-core mrst-gui ad-props deckformat
+mrstModule add ad-blackoil ad-core ad-props ad-fi deckformat mrst-gui
 [G, rock, fluid, deck, state0] = setupSPE9();
 
 
