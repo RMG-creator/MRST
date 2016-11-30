@@ -209,7 +209,9 @@ for k = 1:3
             ac(ix) = true;
                 d  = d + s*dr;
                 gr = (1-s)*gr;
-                Q  = expandQ(Q, c.i.A(ix,:)');
+                for ixi = 1:numel(ix)
+                    Q  = expandQ(Q, c.i.A(ix(ixi),:)');
+                end
         else
             d = d+dr;
             done = true;
@@ -246,7 +248,11 @@ function [ix, s] = findNextCons(A, b, u, d, ac)
 s = (b-A*u)./(A*d);
 s(ac)  = inf;
 s(s<eps) = inf;
-[s, ix] = min(s);
+%[s, ix] = min(s);  % min() only captures one entry in array s, however the
+                    % minimum value can occur in more than one spot
+%ix = find(s == smin);
+smin = min(s);
+ix = find((s-smin) < eps); % returns all indexes where values are equal to the minimum (within a tolerance)
 if s >= 1
     ix = [];
 end
