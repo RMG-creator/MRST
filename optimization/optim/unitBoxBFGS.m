@@ -244,7 +244,7 @@ end
 end
 %--------------------------------------------------------------------------
 
-function [ix, s] = findNextCons(A, b, u, d, ac)
+function [ix, smin] = findNextCons(A, b, u, d, ac)
 s = (b-A*u)./(A*d);
 s(ac)  = inf;
 s(s<eps) = inf;
