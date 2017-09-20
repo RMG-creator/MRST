@@ -83,13 +83,18 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     else
         st1 = status{1};
         rsSat0 = fluid.rsSat(p0);
-        rsSat  = fluid.rsSat(p);
+        rsMax  = fluid.rsSat(p);
+        %rsMaxso = min(rsMax.*so,rs0.*so0);
+        %rsMax = rsMaxso./so;
+        rsMax=min(rsMax,rs0);
+        
         gasPresent = or(and( sg > 0, ~st1), watOnly); % Obvious case
         % Keep oil saturated if previous sg is sufficiently large:
         ix1 = and( sg < 0, sg0 > etol);
         gasPresent = or(gasPresent, ix1);
         % Set oil saturated if previous rs is sufficiently large
-        ix2 = and( and(rs > rsSat*(1+etol), st1), rs0 > rsSat0*(1-etol) );
+        %ix2 = and( and(rs > rsMax*(1+etol), st1), rs0 > rsSat0*(1-etol) );
+        ix2 = and(rs > rsMax*(1+etol), st1);% rs0 > rsSat0*(1-etol) );
         assert(all(sg(ix2)==0))
         gasPresent = or(gasPresent, ix2);
     end
@@ -128,22 +133,25 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     sw(ix) = 0;
 
     % Update saturated r-values -----------------------------------------------
-    rs(gasPresent) = rsSat(gasPresent);
+    rs(gasPresent) = rsMax(gasPresent);
     rv(oilPresent) = rvSat(oilPresent);
 
     % Update undersatured r-values
-    rs(~gasPresent) = min(rsSat(~gasPresent), rs(~gasPresent));
-
+    rs(~gasPresent) = min(rsMax(~gasPresent), rs(~gasPresent));
+    rs = min(rs,rs0);
     % Update state ------------------------------------------------------------
     if model.water
         state = model.setProp(state, 'sw', sw);
     end
     state = model.setProp(state, 'so', so);
+    sg(gasPresent)=max(etol,sg(gasPresent));
     state = model.setProp(state, 'sg', sg);
     
     state = model.setProp(state, 'rs', max(rs, 0));
     state = model.setProp(state, 'rv', max(rv, 0));
 
     state.status = oilPresent + 2*gasPresent;
+    
+    
 end
 
