@@ -144,8 +144,6 @@ if ~opt.reverseMode
     % values have already converged in the forward simulation.
     [sG, rs, rv, rsSat, rvSat] = calculateHydrocarbonsFromStatusBO(model, st, 1-sW, x, rs, rv, p);
 end
-% Multipliers for properties
-[pvMult, transMult, mobMult, pvMult0] = getMultipliers(model.fluid, p, p0);
 
 % Evaluate relative permeability
 sO  = 1 - sW  - sG;
@@ -159,6 +157,17 @@ else
     sat = {sO, sG};
     [krO, krG] = model.evaluateRelPerm(sat);
 end
+
+%% DRSDT==0
+%% mettede sceller
+
+rssO=min(rs.*sO,rs0.*sO0);
+rsmax=(rssO./sO);
+rsmax=min(rs,rs0);
+ %rs=(rssO./sO).*st{3} + ~st{3}.*rs;
+rs=rsmax.*(~st{1}) + st{1}.*rs;
+assert(all(st{3}==(~st{1})));     
+%end
 
 % Modifiy relperm by mobility multiplier (if any)
 krO = mobMult.*krO; krG = mobMult.*krG;
