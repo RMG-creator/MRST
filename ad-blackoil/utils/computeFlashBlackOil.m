@@ -1,4 +1,4 @@
-function state = computeFlashBlackOil(state, state0, model, status)
+function state = computeFlashBlackOil(state, state0, statePrevStep, model, status)
 % Compute flash for a black-oil model with disgas/vapoil
 %
 % SYNOPSIS:
@@ -81,15 +81,23 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         rsSat  = rsSat0; 
         gasPresent = true;
     else
+        sO_prev=model.getProp(statePrevStep,'so');
+        rs_prev=model.getProp(statePrevStep,'rs');
+        
         st1 = status{1};
+        
         rsSat0 = fluid.rsSat(p0);
+        rsMax0=rateLimitedUpdate(rs0,so0, rs_prev, sO_prev,rsSat0,fluid);
+        
         rsSat  = fluid.rsSat(p);
+        rsMax=rateLimitedUpdate(rs,so, rs_prev, sO_prev,rsSat,fluid);
+        
         gasPresent = or(and( sg > 0, ~st1), watOnly); % Obvious case
         % Keep oil saturated if previous sg is sufficiently large:
         ix1 = and( sg < 0, sg0 > etol);
         gasPresent = or(gasPresent, ix1);
         % Set oil saturated if previous rs is sufficiently large
-        ix2 = and( and(rs > rsSat*(1+etol), st1), rs0 > rsSat0*(1-etol) );
+        ix2 = and( and(rs > rsMax*(1+etol), st1), rs0 > rsMax0*(1-etol) );
         assert(all(sg(ix2)==0))
         gasPresent = or(gasPresent, ix2);
     end
@@ -128,11 +136,11 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     sw(ix) = 0;
 
     % Update saturated r-values -----------------------------------------------
-    rs(gasPresent) = rsSat(gasPresent);
+    rs(gasPresent) = rsMax(gasPresent);
     rv(oilPresent) = rvSat(oilPresent);
 
     % Update undersatured r-values
-    rs(~gasPresent) = min(rsSat(~gasPresent), rs(~gasPresent));
+    rs(~gasPresent) = min(rsMax(~gasPresent), rs(~gasPresent));
 
     % Update state ------------------------------------------------------------
     if model.water

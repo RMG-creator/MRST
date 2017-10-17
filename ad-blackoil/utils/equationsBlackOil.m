@@ -160,6 +160,11 @@ else
     [krO, krG] = model.evaluateRelPerm(sat);
 end
 
+%% NB
+rsMax=rateLimitedUpdate(rs,sO,rs0,sO0,rsSat,f);
+%rsMax=double(rsMax);
+rs=rsMax.*(~st{1})+(st{1}).*rs;
+
 % Modifiy relperm by mobility multiplier (if any)
 krO = mobMult.*krO; krG = mobMult.*krG;
 
@@ -177,9 +182,17 @@ else
     [vW, bW, mobW, rhoW, pW, upcw] = deal([]);
 end
 
+extra_flag = (double(rsMax) == double(rsSat));
+%extra_flag0 = (double(rsMax0) == double(rsSat0));
+%extra_flag = (rs<(rsSat));
+extra_flag = false(size(extra_flag));
+%assert(all(st{1}(extra_flag)))
+%assert(all(~st{1} == ( ~st{1} & ~extra_flag)))
 % Evaluate oil properties
-[vO, bO, mobO, rhoO, p, upco] = getFluxAndPropsOil_BO(model, p, sO, krO, T, gdz, rs, ~st{1});
-bO0 = getbO_BO(model, p0, rs0, ~st0{1});
+%[vO, bO, mobO, rhoO, p, upco] = getFluxAndPropsOil_BO(model, p, sO, krO, T, gdz, rs, ~extra_flag);
+%[vO, bO, mobO, rhoO, p, upco] = getFluxAndPropsOil_BO(model, p, sO, krO, T, gdz, rs, ~st{1})
+[vO, bO, mobO, rhoO, p, upco] = getFluxAndPropsOil_BO(model, p, sO, krO, T, gdz, rs, ~st{1} & extra_flag);
+bO0 = getbO_BO(model, p0, rs0, ~st0{1} & extra_flag);
 
 % Evaluate gas properties
 bG0 = getbG_BO(model, p0, rv0, ~st0{2});

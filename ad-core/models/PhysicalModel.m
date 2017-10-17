@@ -500,7 +500,7 @@ methods
             else
                 % Finally update the state. The physical model knows which
                 % properties are actually physically reasonable.
-                [state, updateReport] = model.updateState(state, problem, dx, drivingForces);
+                [state, updateReport] = model.updateState(state, state0, problem, dx, drivingForces);
             end
         end
         isConverged = (all(convergence) && doneMinIts) || model.stepFunctionIsLinear;

@@ -461,7 +461,7 @@ classdef NonLinearSolver < handle
                        'iteration', iteration, ...
                        varargin{:});
             % Function for computing updated values with a given delta
-            update = @(dx) model.updateState(state, problem0, dx, drivingForces);
+            update = @(dx) model.updateState(state, state0, problem0, dx, drivingForces);
             factor = solver.linesearchDecreaseFactor;
             converged = false;
             

@@ -111,7 +111,7 @@ methods
     end
 
     % --------------------------------------------------------------------%
-    function [state, report] = updateState(model, state, problem, dx, drivingForces)
+    function [state, report] = updateState(model, state, statePrevStep, problem, dx, drivingForces)
         vars = problem.primaryVariables;
         removed = false(size(vars));
         if model.disgas || model.vapoil
@@ -171,7 +171,7 @@ methods
             state = model.updateStateFromIncrement(state, ds, problem, 's', inf, model.dsMaxAbs);
             % We should *NOT* be solving for oil saturation for this to make sense
             assert(~any(strcmpi(vars, 'so')));
-            state = computeFlashBlackOil(state, state0, model, st);
+            state = computeFlashBlackOil(state, state0, statePrevStep, model, st);
             state.s  = bsxfun(@rdivide, state.s, sum(state.s, 2));
 
             %  We have explicitly dealt with rs/rv properties, remove from list
