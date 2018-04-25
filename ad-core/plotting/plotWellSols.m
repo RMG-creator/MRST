@@ -96,6 +96,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                  'markerstyles', {{'o', 'x', 'd', 's', 'd', '^', 'v', '>', '<', '*'}}, ...
                  'timescale',   'days', ...
                  'figure',      [], ...
+		 'wells', 'first',...
                  'datasetnames', {{}});
     [opt, plotvararg] = merge_options(opt, varargin{:});
     
@@ -110,7 +111,14 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     end
     
     wellnames = arrayfun(@(x) x.name, wellsols{1}{1}, 'UniformOutput', false);
-    
+    switch opt.wells
+        case 'first'
+            initwells=1;
+        case 'all'
+            initwells =[1:numel(wellnames)]';
+        otherwise
+            error('This well default not known')
+    end
     if isempty(opt.datasetnames)
         % If datasets are not actually named, just assign them data1,
         % data2, ..., datan for convenience.
@@ -180,6 +188,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
               'Position',[xmargin, .8, blocksz, .05]);
     wellsel = uicontrol('Units', 'normalized', 'Parent', ctrlpanel,...
               'Style', 'listbox', 'Max', 1e9, 'Min', 1,...
+	      'Value', initwells,...		
               'String', wellnames, 'Callback', @drawPlot, ...
               'Position',[xmargin, .2, blocksz, .6]);
     
