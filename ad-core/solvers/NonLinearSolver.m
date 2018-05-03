@@ -414,6 +414,11 @@ classdef NonLinearSolver < handle
             if converged
                 [state, r] = model.updateAfterConvergence(state0, state, dt, drivingForces);
                 reports{end}.FinalUpdate = r;
+                if(isfield(state0,'time'))
+                    state.time = state0.time+dt;
+                else
+                    state.time = dt;
+                end
             end
             report = struct('NonlinearReport', {reports}, ...
                             'Converged',       converged, ...

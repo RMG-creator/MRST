@@ -88,3 +88,6 @@ function vnorm = create_vector_norm_function()
         vnorm = @(x) vecnorm(x, 2, 2);
     end
 end
+function y=vecnorm(x,m,n)
+    y=sum(x.^m,n).^(1/m);
+end
