@@ -41,13 +41,64 @@ classdef AMGCL_CPRSolverAD < AMGCLSolverAD
            [dx, result, report] = solveLinearProblem@LinearSolverAD(solver, problem, model);
        end
        
-       function [dx, result, report] = solveAdjointProblem(solver, problemPrev,problemCurr, adjVec, objective, model)
-           if ~isempty(problemPrev)
-                problemPrev = solver.prepareProblemCPR(problemPrev, model);
-           end
-           problemCurr = solver.prepareProblemCPR(problemCurr, model);
-           [dx, result, report] = solveAdjointProblem@LinearSolverAD(solver, problemPrev,problemCurr, adjVec, objective, model);
+       function [grad, result, report] = solveAdjointProblem(solver, problemPrev,...
+                problemCurr, adjVec, objective, model) %#ok
+            % Solve an adjoint problem.
+            timer = tic();
+            problemCurr = problemCurr.assembleSystem();
+            
+            % Maybe formalize the control variables a bit in the future
+            % sometime...
+            if iscell(objective)
+                objective = objective{:};
+            end
+            objective = combineEquations(objective);
+            assert(isa(objective, 'ADI'), 'Objective function was not of type ADI.');
+            b = -(objective.jac{1})';
+            if ~isempty(adjVec)
+                problemPrev = problemPrev.assembleSystem();
+                b = b - problemPrev.A'*adjVec;
+            end
+            A = problemCurr.A;
+            b = full(b);
+            % Apply scaling
+            %[A, b, scaling] = solver.applyScaling(A, b);
+            % Reduce system (if requested)
+            [A, b, lsys] = solver.reduceLinearSystemAdjoint(A, b);
+            % Reorder linear system
+            [A, b] = solver.reorderLinearSystem(A, b);
+            %% make pressure like system
+            scale = model.getScalingFactorsCPR(problemCurr, problemCurr.equationNames, solver);
+            nc=size(A,1)/2  
+            bindex=repmat(2,nc,1);
+            bb=[scale{1} scale{2};0 1]; 
+            [ind1, ind2] = blockDiagIndex(bindex, bindex);
+            val=repmat(reshape(bb,[],1),nc,1);
+            tt = sparse(ind1,ind2,val,size(A,1),size(A,2));
+            A=tt*A;b=tt*b;
+            [A, b, scaling] = solver.applyScaling(A, b);
+            % Apply transpose
+            A = A';
+            t_prepare = toc(timer);
+            % Solve system
+            [result, report] = solver.solveLinearSystem(A, b);
+            result = solver.undoScalingAdjoint(result, scaling);
+            result=tt'*result;           
+            t_solve = toc(timer) - t_prepare;
+            % Permute system back
+            result = solver.deorderLinearSystemAdjoint(result);
+            % Recover eliminated variables on linear level
+            result = solver.recoverLinearSystemAdjoint(result, lsys);
+            % Undo scaling
+            %result = solver.undoScalingAdjoint(result, scaling);
+
+            report.SolverTime = toc(timer);
+            report.LinearSolutionTime = t_solve;
+            report.preparationTime = t_prepare;
+            report.postprocessTime = report.SolverTime - t_solve - t_prepare;
+            grad = solver.storeIncrements(problemCurr, result);
        end
+        
 
        function setSRelaxation(solver, v)
            solver.amgcl_setup.s_relaxation = translateOptionsAMGCL('relaxation', v);
