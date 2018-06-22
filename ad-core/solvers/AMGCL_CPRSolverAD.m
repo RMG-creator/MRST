@@ -71,19 +71,36 @@ classdef AMGCL_CPRSolverAD < AMGCLSolverAD
             scale = model.getScalingFactorsCPR(problemCurr, problemCurr.equationNames, solver);
             nc=size(A,1)/2  
             bindex=repmat(2,nc,1);
-            bb=[scale{1} scale{2};0 1]; 
+            %bb=[scale{1} scale{2};0 1];
+            bb=[scale{1} scale{2};-scale{2} scale{1}];            
             [ind1, ind2] = blockDiagIndex(bindex, bindex);
             val=repmat(reshape(bb,[],1),nc,1);
             tt = sparse(ind1,ind2,val,size(A,1),size(A,2));
-            A=tt*A;b=tt*b;
-            [A, b, scaling] = solver.applyScaling(A, b);
+            A=tt*A;%b=tt*b;            
+            
+            if(false)
+                sz = size(A);
+                assert(sz(1) == sz(2), 'Matrix must be square!');
+                n = sz(1);
+                d = repmat([-barsa,1]',nc,1);
+                %d=1./d;
+                I = (1:n)';
+                M = sparse(I, I, d, n, n);
+            else
+               M = solver.getDiagonalInverse(A); 
+            end
+            %[A, b, scaling] = solver.applyScaling(A, b);
+            A=A*M;b=M*b;
             % Apply transpose
             A = A';
             t_prepare = toc(timer);
             % Solve system
-            [result, report] = solver.solveLinearSystem(A, b);
-            result = solver.undoScalingAdjoint(result, scaling);
-            result=tt'*result;           
+            disp(max(b))
+            [result, report] = solver.solveLinearSystem(A, b);            
+            result=tt'*result;
+            any(isnan(result))
+            
+            
             t_solve = toc(timer) - t_prepare;
             % Permute system back
             result = solver.deorderLinearSystemAdjoint(result);
@@ -91,7 +108,6 @@ classdef AMGCL_CPRSolverAD < AMGCLSolverAD
             result = solver.recoverLinearSystemAdjoint(result, lsys);
             % Undo scaling
             %result = solver.undoScalingAdjoint(result, scaling);
-
             report.SolverTime = toc(timer);
             report.LinearSolutionTime = t_solve;
             report.preparationTime = t_prepare;
