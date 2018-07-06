@@ -71,8 +71,8 @@ classdef AMGCL_CPRSolverAD < AMGCLSolverAD
             scale = model.getScalingFactorsCPR(problemCurr, problemCurr.equationNames, solver);
             nc=size(A,1)/2  
             bindex=repmat(2,nc,1);
-            %bb=[scale{1} scale{2};0 1];
-            bb=[scale{1} scale{2};-scale{2} scale{1}];            
+            bb=[scale{1} scale{2};0 1];
+            %%bb=[scale{1} scale{2};-scale{2} scale{1}];            
             [ind1, ind2] = blockDiagIndex(bindex, bindex);
             val=repmat(reshape(bb,[],1),nc,1);
             tt = sparse(ind1,ind2,val,size(A,1),size(A,2));
