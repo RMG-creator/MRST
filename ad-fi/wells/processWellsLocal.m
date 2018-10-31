@@ -90,7 +90,10 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
    prod = struct('WCONHIST', @process_wconhist, ...
                  'WCONPROD', @process_wconprod);
 
-   post = struct('WPOLYMER', @process_wpolymer);
+   post = struct('WPOLYMER', @process_wpolymer, ...
+                 'WMEOR', @process_wmeor);
+                 %'WMICROBE', @process_wmicrobe, ...
+                 %'WNUTRIENT', @process_wnutrient);
 
    % ----------------------------------------------------------------------
    % Well processing stages
@@ -272,6 +275,45 @@ function W = process_wpolymer(W, control, G, rock, well_id, p, opt)
       for j = 1:size(W,1)
          if strcmp(W(j).name, control.WPOLYMER{i,1})
             W(j).poly = control.WPOLYMER{i,2};
+         end
+      end
+   end
+end
+
+%--------------------------------------------------------------------------
+
+function W = process_wmeor(W, control, G, rock, well_id, p, opt)
+   [W.meor] = deal(0); % set all wells to zero
+   for i = 1 : size(control.WMEOR, 1)
+      for j = 1:size(W,1)
+         if strcmp(W(j).name, control.WMEOR{i,1})
+            W(j).meor = control.WMEOR{i,2};
+         end
+      end
+   end
+end
+
+%--------------------------------------------------------------------------
+
+function W = process_wmicrobe(W, control, G, rock, well_id, p, opt)
+   [W.MICROBE] = deal(0); % set all wells to zero
+   for i = 1 : size(control.WMICROBE, 1)
+      for j = 1:size(W,1)
+         if strcmp(W(j).name, control.WMICROBE{i,1})
+            W(j).MICROBE = control.WMICROBE{i,2};
+         end
+      end
+   end
+end
+
+%--------------------------------------------------------------------------
+
+function W = process_wnutrient(W, control, G, rock, well_id, p, opt)
+   [W.NUTRIENT] = deal(0); % set all wells to zero
+   for i = 1 : size(control.WNUTRIENT, 1)
+      for j = 1:size(W,1)
+         if strcmp(W(j).name, control.WNUTRIENT{i,1})
+            W(j).NUTRIENT = control.WNUTRIENT{i,2};
          end
       end
    end

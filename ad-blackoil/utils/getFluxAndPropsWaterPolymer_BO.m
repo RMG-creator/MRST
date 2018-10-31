@@ -12,9 +12,9 @@ function [vW, vP, bW, muWeffMult, mobW, mobP, rhoW, pW, upcw, a] = ...
     pW = pO - pcOW;
 
     % Multipliers due to polymer
-    mixpar = fluid.mixPar;
-    cbar   = c/fluid.cmax;
-    a = fluid.muWMult(fluid.cmax).^(1-mixpar);
+    mixpar = fluid.mixPar;           % omega
+    cbar   = c/fluid.cmax;          % c/cmax
+    a = fluid.muWMult(fluid.cmax).^(1-mixpar);      %mu_p^(1-w)
     b = 1./(1-cbar+cbar./a);
     % The viscosity multiplier only result from the polymer mixing.
     muWeffMult = b.*fluid.muWMult(c).^mixpar;

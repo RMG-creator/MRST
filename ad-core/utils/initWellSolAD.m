@@ -35,7 +35,12 @@ ws = repmat(struct(...
 if isprop(model, 'polymer') && model.polymer % polymer model
 	 [ws(:).qWPoly] = deal(0);
 end
-
+if isprop(model, 'nutrient')  %?
+    [ws(:).qWMEOR] = deal(0);
+    [ws(:).MEORMIX] = deal(0);
+    %[ws(:).qWMICROBE] = deal(0);
+    %[ws(:).qWNUTRIENT] = deal(0);
+end
 % just initialize fields that are not assigned in assignFromSchedule
 for k = 1:nw
     nConn = numel(W(k).cells);
@@ -63,8 +68,11 @@ for k = 1:nw
     if isprop(model, 'polymer') && model.polymer
        ws(k).qWPoly = W(k).poly*ws(k).qWs;
     end
+    if model.microbe
+        ws(k).qWMEOR = W(k).meor*ws(k).qWs;
+    end
     
-    ws(k).mixs = W(k).compi;
+    ws(k).mixs = W(k).compi(actPh);
     ws(k).qs   = W(k).sign*ones(1, nPh)*irate;
     ws(k).cdp  = zeros(nConn,1);
     ws(k).cqs  = zeros(nConn,nPh);
@@ -91,15 +99,17 @@ for k = 1:numel(W)
                 ws(k).qWs = v*W(k).compi(1);
             end
             if model.oil
-                ix = 1 + model.water;
-                ws(k).qOs = v*W(k).compi(ix);
+                ws(k).qOs = v*W(k).compi(2);
             end
             if model.gas
-                ix = 1 + model.water + model.oil;
-                ws(k).qGs = v*W(k).compi(ix);
+                ws(k).qGs = v*W(k).compi(3);
             end
             if isprop(model, 'polymer') && model.polymer
                 ws(k).qWPoly = W(k).poly*ws(k).qWs;
+            end
+            %Don't know why
+            if isprop(model, 'microbe') && model.microbe
+                ws(k).qWMEOR = W(k).meor*ws(k).qWs;
             end
         case 'orat'
             ws(k).qOs = v;
