@@ -34,7 +34,7 @@ classdef MEORXModel < TwoPhaseOilWaterModel
             model.biopoly = false;
             % not available yet
             model.outputFluxes = false;
-            
+            model.useCNVConvergence = false;
             model.wellVarNames = {'qWs', 'qOs', 'qWMEOR', 'bhp'};
             
             model = merge_options(model, varargin{:});
