@@ -102,23 +102,52 @@ methods
     end
 
     % --------------------------------------------------------------------%
-    function [convergence, values] = checkConvergence(model, problem, n)
+    function [convergence, values, names] = checkConvergence(model, problem, n)
         % Check and report convergence based on residual tolerances
+        % 
+        % SYNOPSIS:
+        %   [convergence, values, names] = model.checkConvergence(problem)
+        %
+        % DESCRIPTION:
+        %   Basic convergence testing for a linearized problem. By default,
+        %   this simply takes the inf norm of all model equations.
+        %   Subclasses are free to overload this function for more
+        %   sophisticated and robust options.
+        %
+        % PARAMETERS:
+        %   model   - Class instance
+        %   problem - `LinearizedProblemAD` to be checked for convergence.
+        %             The default behavior is to check all equations
+        %             against `model.nonlinearTolerance` in the inf/max
+        %             norm.
+        %   n       - OPTIONAL· The norm to be used. Default: `inf`.
+        %
+        % RETURNS:
+        %   convergence - Vector of length `N` with bools indicating
+        %                 `true/false` if that residual/error measure has
+        %                 converged.
+        %   values      - Vector of length `N` containing the numerical
+        %                 values checked for convergence.
+        %   names       - Cell array of length `N` containing the names
+        %                 tested for convergence.
+        %
+        % NOTE:
+        %   By default, `N` is equal to the number of equations in
+        %   `problem` and the convergence simply checks the convergence of
+        %   each equation against a generic `nonlinearTolerance`.
+        %   However, subclasses are free to produce any number of convergence
+        %   criterions and they need not correspond to specific equations
+        %   at all.
+        %   
         if nargin == 2
             n = inf;
         end
 
         values = norm(problem, n);
-        convergence = all(values < model.nonlinearTolerance);
-
-        if model.verbose
-            for i = 1:numel(values)
-                fprintf('%s (%s): %2.2e\t', problem.equationNames{i}, problem.types{i}, values(i));
-            end
-            fprintf('\n')
-        end
+        convergence = values < model.nonlinearTolerance;
+        names = strcat(problem.equationNames, ' (', problem.types, ')');
     end
-
+    
     % --------------------------------------------------------------------%
     function [state, report] = stepFunction(model, state, state0, dt, drivingForces, linsolve, nonlinsolve, iteration, varargin)
         % Make a single linearized timestep
@@ -130,7 +159,7 @@ methods
                                    varargin{:});
         problem.iterationNo = iteration;
 
-        [convergence, values] = model.checkConvergence(problem);
+        [convergence, values, resnames] = model.checkConvergence(problem);
         % Minimum number of iterations can be prescribed, i.e. we
         % always want at least one set of updates regardless of
         % convergence criterion.
@@ -140,7 +169,7 @@ methods
         failureMsg = '';
         failure = false;
         [linearReport, updateReport] = deal(struct());
-        if (~convergence && ~onlyCheckConvergence)
+        if (~all(convergence) && ~onlyCheckConvergence)
             % Get increments for Newton solver
             [dx, ~, linearReport] = linsolve.solveLinearProblem(problem, model);
 
@@ -156,12 +185,16 @@ methods
                 failureMsg = 'Linear solver produced non-finite values.';
             end
         end
+        isConverged = all(convergence) || model.stepFunctionIsLinear;
+        if model.verbose
+            printConvergenceReport(resnames, values, convergence, iteration);
+        end
         report = model.makeStepReport(...
                         'LinearSolver', linearReport, ...
                         'UpdateState',  updateReport, ...
                         'Failure',      failure, ...
                         'FailureMsg',   failureMsg, ...
-                        'Converged',    convergence, ...
+                        'Converged',    isConverged, ...
                         'Residuals',    values);
     end
 

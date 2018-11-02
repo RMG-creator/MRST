@@ -53,8 +53,7 @@ end
 % the definition of saturations) ((may need to change later)), microbe
 % concentration, nutrient concentration, metabolite concentration,
 % and well rates and bhp.
-primaryVars = {'pressure', 'sW', 'microbe_0', 'microbe_1', 'pollutes', 'nutrient', 'qWs', 'qOs',...
-    'qWMEOR', 'bhp'};
+primaryVars = {'pressure', 'sW', 'microbe_0', 'microbe_1', 'pollutes', 'nutrient'};
 
 % Evaluate relative permeability
 sO = 1 - sW;
@@ -217,7 +216,8 @@ if ~isempty(W)
 %        eqs{8} = qWNUTRIENT - Rw*(cqs{1}.*nw);
         
         names(7:10) = {'waterWells', 'oilWells', 'meorWells', 'closureWells'};
-        types(7:10) = {'perf', 'perf', 'perf', 'well'};
+        types(7:10) = {'perf', 'perf', 'perf', 'well'};, 
+        primaryVars(7:10) = {'qWs', 'qOs', 'qWMEOR', 'bhp'};
     else
         [eq, n, typ] = ...
             wm.createReverseModeWellEquations(model, state0.wellSol, p0);

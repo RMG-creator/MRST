@@ -1,4 +1,4 @@
-function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
+function [converged, values, evaluated, names] = CNV_MBConvergence(model, problem)
     % Compute convergence based on total mass balance and maximum residual mass balance.
     %
     % SYNOPSIS:
@@ -60,6 +60,7 @@ function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
     tol_cnv = model.toleranceCNV;
 
     evaluated = false(1, numel(problem));
+    active = [false, false, false];
     if model.water,
         BW = 1./fluid.bW(state.pressure);
         sub = problem.indexOfEquationName('water');
@@ -68,6 +69,7 @@ function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
         CNVW = BW_avg*problem.dt*max(abs(RW)./pv);
         
         evaluated(sub) = true;
+        active(1) = true;
     else
         BW_avg = 0;
         CNVW   = 0;
@@ -90,6 +92,7 @@ function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
         CNVO = BO_avg*problem.dt*max(abs(RO)./pv);
         
         evaluated(sub) = true;
+        active(2) = true;
     else
         BO_avg = 0;
         CNVO   = 0;
@@ -109,6 +112,7 @@ function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
         CNVG = BG_avg*problem.dt*max(abs(RG)./pv);
         
         evaluated(sub) = true;
+        active(3) = true;
     else
         BG_avg = 0;
         CNVG   = 0;
@@ -124,14 +128,9 @@ function [converged, values, evaluated] = CNV_MBConvergence(model, problem)
     CNV = [CNVO CNVW CNVG] ;
     converged_CNV = CNV < tol_cnv;
 
-    converged = converged_MB & converged_CNV;
-    values = [CNV, MB];
-    
-    if mrstVerbose()
-        if problem.iterationNo == 1
-            fprintf('CNVO\t\tCNVW\t\tCNVG\t\tMBO\t\tMBW\t\tMBG\n');
-        end
-        fprintf('%2.2e\t', values);
-        fprintf('\n')
-    end
+    converged = [converged_CNV(active), converged_MB(active)];
+    values = [CNV(active), MB(active)];    
+    cnv_names = {'CNV_W', 'CNV_O', 'CNV_G'};
+    mb_names = {'MB_W', 'MB_O', 'MB_G'};
+    names = horzcat(cnv_names(active), mb_names(active));
 end
