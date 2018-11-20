@@ -160,6 +160,12 @@ sat = {sW, sO};
                                                                  {pW, p}, sat, mob, rho, ...
                                                                  {}, {}, ...
                                                                  drivingForces);
+
+% Add aquifer contributions if any.
+if isfield(drivingForces, 'aquifer') && (drivingForces.aquifer==true)
+    eqs = addAquiferContributions(model, eqs, names, state, p, sW, dt);
+end
+
 % Finally, add in and setup well equations
 [eqs, names, types, state.wellSol] = model.insertWellEquations(eqs, names, types, wellSol0, wellSol, wellVars, wellMap, p, mob, rho, {}, {}, dt, opt);
 % Add in fluxes
