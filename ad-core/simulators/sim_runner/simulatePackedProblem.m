@@ -29,7 +29,7 @@ function [ok, status] = simulatePackedProblem(problems, varargin)
         msg = '';
         if opt.checkTooMany
             % This is a serious error!
-            assert(ndata <= nstep, 'Too much data exists! Problem may have been redefined.');
+            assert(ndata <= nstep, 'Too much data exists for %s! Problem may have been redefined.', problems{i}.Name);
         end
         
         firstLine = sprintf(' Case "%s" (%s)',...
@@ -67,19 +67,25 @@ function [ok, status] = simulatePackedProblem(problems, varargin)
 
         timer = tic();
         if doSim
+            mods = mrstModule();
             try
+                mrstModule('add', problem.Modules{:});
                 simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls,...
                                                             'restartStep', restartStep,...
                                                             'OutputHandler', state_handler, ...
                                                             'ReportHandler', report_handler, ...
                                                             problem.SimulatorSetup.ExtraArguments{:});
             catch ex
+                mrstModule('reset', mods{:});
                 msg = ex.message;
                 ok = false;
                 fprintf('!!! Simulation resulted in fatal error !!!\n Exception thrown: %s\n', msg);
                 if ~opt.continueOnError
                     rethrow(ex);
                 end
+            end
+            if ok
+                mrstModule('reset', problem.Modules{:});
             end
         end
         

@@ -1,4 +1,7 @@
 function [state0, model, schedule, nonlinear] = initEclipseProblemAD(deck, varargin)
+    mrstModule add deckformat ad-core ad-blackoil ad-props
+    deck = convertDeckUnits(deck);
+
     opt = struct('useMexGeometry', false, ...
                  'TimestepStrategy', 'iteration', ...
                  'AutoDiffBackend',  [], ...
@@ -44,12 +47,13 @@ function [state0, model, schedule, nonlinear] = initEclipseProblemAD(deck, varar
                 sel = [];
             case 'iteration'
                 % Control on iterations
-                sel = IterationCountTimeStepSelector();
+                sel = IterationCountTimeStepSelector('targetIterationCount', 8);
             case 'ds'
                 % Control on saturation change
                 sel = ...
                     StateChangeTimeStepSelector('targetProps', {'s'},...
-                                                'targetChangeAbs', 0.2);
+                                                'targetChangeAbs', 0.2, ...
+                                                'targetIterationCount', inf);
             case 'dsdc'
                 % Control on saturation + components
                 names = {'s'};
@@ -60,13 +64,15 @@ function [state0, model, schedule, nonlinear] = initEclipseProblemAD(deck, varar
                 end
                 sel = ...
                     StateChangeTimeStepSelector('targetProps', names,...
-                                                'targetChangeAbs', targets);
+                                                'targetChangeAbs', targets, ...
+                                                'targetIterationCount', inf);
 
             otherwise
                 error('Unknown timestepping strategy %s', opt.TimestepStrategy);
         end
         if ~isempty(sel)
-            sel.firstRampupStepRelative = 0.01;
+            sel.firstRampupStepRelative = 0.1;
+            sel.firstRampupStep = 1*day;
             nonlinear.timeStepSelector = sel;
         end
     end
@@ -74,6 +80,11 @@ end
 
 function model = initializeModel(deck, opt)
     % Set up grid
+    rock  = initEclipseRock(deck);
+    if isfield(deck.GRID, 'ACTNUM')
+        deck.GRID.ACTNUM = double(deck.GRID.ACTNUM > 0 & rock.poro > 0);
+    end
+
     G = initEclipseGrid(deck, 'SplitDisconnected', opt.SplitDisconnected);
     if numel(G) > 1
         warning('Multiple disconnected grids found. Picking largest.');
@@ -88,7 +99,6 @@ function model = initializeModel(deck, opt)
     fluid = initDeckADIFluid(deck, 'G', G);
     gravity reset on;
     
-    rock  = initEclipseRock(deck);
     rock  = compressRock(rock, G.cells.indexMap);
 
     model = selectModelFromDeck(G, rock, fluid, deck);
