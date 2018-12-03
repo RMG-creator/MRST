@@ -1,17 +1,59 @@
 classdef AquiferBlackOilModel < ThreePhaseBlackOilModel
     
     properties
-        aquifer % aquifer data table
-        aquind % structure which explains the fields in the aquifer data table
+        aquifers % aquifers data table
+        aquind % structure which explains the fields in the aquifers data table
+        aquiferprops
+        modeltype
     end
     
     methods
-        function model = AquiferBlackOilModel(G, rock, fluid, aquifer, aquind, varargin)
-            model = model@ThreePhaseBlackOilModel(G, rock, fluid, varargin{:});
-            model.aquifer = aquifer;
-            model.aquind  = aquind;
+        function model = AquiferBlackOilModel(G, rock, fluid, aquifers, aquind, ...
+                                              aquiferprops, varargin)
+            opt = struct('modeltype', 'blackoil');
+            [opt, rest] = merge_options(opt, varargin{:});
+            model = model@ThreePhaseBlackOilModel(G, rock, fluid, rest{:});
+
+            model.modeltype = opt.modeltype;
+            switch model.modeltype
+              case 'blackoil'
+                model.oil = true;
+                model.gas = true;
+                model.water = true;
+              case 'oilwater'
+                model.oil = true;
+                model.gas = false;
+                model.water = true;
+              otherwise
+                error('modeltype not recognized');
+            end
+            
+            model.aquifers     = aquifers;
+            model.aquind       = aquind;
+            model.aquiferprops = aquiferprops;
         end
         
+        function forces = getValidDrivingForces(model)
+            forces = getValidDrivingForces@ThreePhaseBlackOilModel(model);
+            forces.aquifer = true;
+        end
+        
+        
+        function [problem, state] = getEquations(model, state0, state, dt, drivingForces, varargin)
+            switch model.modeltype
+              case 'blackoil'
+                [problem, state] = equationsBlackOil(state0, state, model, dt, ...
+                                                     drivingForces, ...
+                                                     varargin{:});
+              case 'oilwater'
+                [problem, state] = equationsOilWater(state0, state, model, dt, ...
+                                                     drivingForces, ...
+                                                     varargin{:});
+              otherwise
+                error('modeltype not recognized');
+            end
+
+        end
         % --------------------------------------------------------------------%
         function [fn, index] = getVariableField(model, name)
             switch(lower(name))
@@ -30,16 +72,42 @@ classdef AquiferBlackOilModel < ThreePhaseBlackOilModel
                                                               state0, state, ...
                                                               dt, ...
                                                               drivingForces);
-            sW = model.getProp(state, 'sW');
-            p = model.getProp(state, 'pressure');
-            q = computeAquiferFluxes(model, p, sW, state, dt);
+            sW   = model.getProp(state, 'sW');
+            p    = model.getProp(state, 'pressure');
+            p_aq = model.getProp(state, 'aquiferpressures');
+            V_aq = model.getProp(state, 'aquifervolumes');
+            
+            q = computeAquiferFluxes(model, p, sW, p_aq, V_aq, dt);
+            
+            aquifers     = model.aquifers;
+            aquind       = model.aquind;
+            aquiferprops = model.aquiferprops;
+            conn = aquifers(:, aquind.conn);
+            aquid = aquifers(:, aquind.aquid);
+            nconn = size(conn, 1);
+            naq = max(aquid);
+            aquid2conn = sparse(aquid, (1 : nconn)', 1, naq, nconn)';
+           
+            Q = aquid2conn'*q;
+            Q = dt.*Q;
+            C = aquiferprops.C;
+            p_aq = p_aq - Q./(C.*V_aq);
+            V_aq = V_aq - Q;
+        
+            state = model.setProp(state, 'aquiferpressures', p_aq);
+            state = model.setProp(state, 'aquifervolumes'  , V_aq);
         end
         
-        function eqs = addAquiferContribution(model, eqs, names, state, p, sW, dt)
+        function eqs = addAquifersContribution(model, eqs, names, state, p, sW, dt)
             
-            q = computeAquiferFluxes(model, p, sW, state, dt);
+            p_aq = model.getProp(state, 'aquiferpressures');
+            V_aq = model.getProp(state, 'aquifervolumes');
+            q = computeAquiferFluxes(model, p, sW, p_aq, V_aq, dt);
+            
             wind = strcmpi('water', names);
-            conn = model.aquifer.conn;
+            aquifers = model.aquifers;
+            aquind   = model.aquind;
+            conn = aquifers(:, aquind.conn);
             eqs{wind}(conn) = eqs{wind}(conn) - q;
 
         end

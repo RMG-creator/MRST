@@ -20,6 +20,7 @@ function [ok, status] = simulatePackedProblem(problems, varargin)
         nls = problem.SimulatorSetup.NonLinearSolver;
         
         state_handler = problem.OutputHandlers.states;
+        wellSol_handler = problem.OutputHandlers.wellSols;
         report_handler = problem.OutputHandlers.reports;
 
         nstep = numel(schedule.step.val);
@@ -29,7 +30,7 @@ function [ok, status] = simulatePackedProblem(problems, varargin)
         msg = '';
         if opt.checkTooMany
             % This is a serious error!
-            assert(ndata <= nstep, 'Too much data exists! Problem may have been redefined.');
+            assert(ndata <= nstep, 'Too much data exists for %s! Problem may have been redefined.', problems{i}.Name);
         end
         
         firstLine = sprintf(' Case "%s" (%s)',...
@@ -73,6 +74,7 @@ function [ok, status] = simulatePackedProblem(problems, varargin)
                 simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls,...
                                                             'restartStep', restartStep,...
                                                             'OutputHandler', state_handler, ...
+                                                            'WellOutputHandler', wellSol_handler, ...
                                                             'ReportHandler', report_handler, ...
                                                             problem.SimulatorSetup.ExtraArguments{:});
             catch ex
