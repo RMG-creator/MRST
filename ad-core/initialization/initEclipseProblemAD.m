@@ -3,6 +3,7 @@ function [state0, model, schedule, nonlinear] = initEclipseProblemAD(deck, varar
     deck = convertDeckUnits(deck);
 
     opt = struct('useMexGeometry', false, ...
+                 'useMexProcessGrid', false, ...
                  'TimestepStrategy', 'iteration', ...
                  'AutoDiffBackend',  [], ...
                  'UniformFacilityModel', false, ...
@@ -84,8 +85,7 @@ function model = initializeModel(deck, opt)
     if isfield(deck.GRID, 'ACTNUM')
         deck.GRID.ACTNUM = double(deck.GRID.ACTNUM > 0 & rock.poro > 0);
     end
-
-    G = initEclipseGrid(deck, 'SplitDisconnected', opt.SplitDisconnected);
+    G = initEclipseGrid(deck, 'SplitDisconnected', opt.SplitDisconnected,'useMexProcessGrid',opt.useMexProcessGrid);
     if numel(G) > 1
         warning('Multiple disconnected grids found. Picking largest.');
         G = G(1);
