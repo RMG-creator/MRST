@@ -5,7 +5,7 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
     %   model = ThreePhaseBlackOilSurfactantModel(G, rock, fluid, varargin)
     %
     % DESCRIPTION: 
-    %   Fully implicit model for an oil water system with surfactant. All
+    %   Fully implicit model for an black-oil system with surfactant. All
     %   the equations are solved implicitly. A description of the surfactant model
     %   that is implemented can be found in the directory ad-eor/docs .
     %
@@ -20,7 +20,7 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
     %
     % EXAMPLE:
     %
-    % SEE ALSO: equationsOilWaterSurfactant, ImplicitExplicitOilWaterSurfactantModel
+    % SEE ALSO: equationsThreePhaseBlackOilPolymer
     %
 
     properties
@@ -32,7 +32,7 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
         function model = ThreePhaseBlackOilSurfactantModel(G, rock, fluid, varargin)
 
             model = model@ThreePhaseBlackOilModel(G, rock, fluid, varargin{:}); 
-%           Add veloc calculation
+            % Add veloc calculation
             model = model.setupOperators(G, rock, varargin{:});
             model.surfactant = true;
             model = merge_options(model, varargin{:});

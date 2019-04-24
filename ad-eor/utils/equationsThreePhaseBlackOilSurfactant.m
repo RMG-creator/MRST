@@ -134,8 +134,6 @@ bW   = b{1}  ; bO   = b{2};   bG   = b{3};
 bW0  = b0{1} ; bO0  = b0{2};  bG0  = b0{3};
 mobSft =  mobW.*c;
 
-
-
 % Upstream weight b factors and multiply by interface fluxes to obtain the
 % fluxes at standard conditions.
 vO     = -op.faceUpstr(upcO, mobO).*T.*dpO;
