@@ -1,4 +1,4 @@
-%% 2D Tutorial For ad BlackOil-Surfactant system
+%% 2D Tutorial For ad Black-Oil-Surfactant system
 % The input data is read from a deck using Eclipse format
 % (BOSURFACTANT2D.DATA). The surfactant property (see file surfact.inc) are taken
 % from SPE paper 145036.
