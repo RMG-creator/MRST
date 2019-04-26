@@ -13,6 +13,9 @@
 % bottom-hole pressure (bhp), whereas the production well is under pressure
 % control with target bottom-home pressure 260 bar.
 
+clc
+clear
+
 mrstModule add ad-core ad-blackoil ad-eor ad-fi ad-props ...
                deckformat mrst-gui
 

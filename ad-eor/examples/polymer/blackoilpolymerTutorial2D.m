@@ -12,6 +12,8 @@
 % control with target rate 1000 m3/day and upper limit of 450 bar on the
 % bottom-hole pressure (bhp), whereas the production well is under pressure
 % control with target bottom-home pressure 260 bar.
+clc
+clear
 
 mrstModule add ad-core ad-blackoil ad-eor ad-fi ad-props ...
                deckformat mrst-gui
@@ -71,7 +73,7 @@ model.useCNVConvergence = true;
 % solver by specifying 'useCPR' to be true. By doing that, AGMG algebraic
 % multigrid solver will be used if it is present. For much larger cases,
 % the AGMG will improve the solution speed significantly and be required.
-nonlinearsolver = getNonLinearSolver(model, 'DynamicTimesteps', false, ...
+ nonlinearsolver = getNonLinearSolver(model, 'DynamicTimesteps', false, ...
                                      'useCPR', false);
 nonlinearsolver.useRelaxation = true;
 
