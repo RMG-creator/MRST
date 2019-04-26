@@ -53,11 +53,14 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
        m(isSft) = fluid.miscfact(logNc, 'cellInx', find(isSft));
     end
     
-    sO       = 1-sW-sG;
-    sWcon    = fluid.sWcon;    % Residual water saturation   without surfactant
-    sOres    = fluid.sOres;    % Residual oil saturation     without surfactant
-    sWconSft = fluid.sWconSft; % Residual water saturation   with    surfactant
-    sOresSft = fluid.sOresSft; % Residual oil saturation     with    surfactant
+    sO       = 1 - sW - sG;
+    satreg  = model.rock.regions.saturation; 
+    surfreg = model.rock.regions.surfactant;
+    
+    sWcon    = fluid.krPts.w(satreg, 2);  % Residual water saturation   without surfactant
+    sOres    = fluid.krPts.w(satreg, 2);  % Residual oil saturation     without surfactant
+    sWconSft = fluid.krPts.w(surfreg, 2); % Residual water saturation   with    surfactant
+    sOresSft = fluid.krPts.w(surfreg, 2); % Residual oil saturation     with    surfactant
 
     % Interpolated water/oil residual saturations
     sNcWcon = m.*sWconSft + (1 - m).*sWcon;

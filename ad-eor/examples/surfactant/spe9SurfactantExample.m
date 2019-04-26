@@ -28,8 +28,8 @@ deck = convertDeckUnits(deck);
 fluid = initDeckADIFluid(deck);
 G = initEclipseGrid(deck);
 G = computeGeometry(G);
-rock  = initEclipseRock(deck);
-rock  = compressRock(rock, G.cells.indexMap);
+rock = initEclipseRock(deck);
+rock = compressRock(rock, G.cells.indexMap);
 
 %% Set up the model
 % 
@@ -37,14 +37,16 @@ rock  = compressRock(rock, G.cells.indexMap);
 % modeling equations. See simulatorWorkFlowExample.
 
 model = ThreePhaseBlackOilSurfactantModel(G, rock, fluid, ...
-                                                  'inputdata', deck, ...
-                                                  'extraStateOutput', true);
+                                          'inputdata', deck, ...
+                                          'extraStateOutput', true);
+model.disgas = true;
+model.vapoil = false;
 
 %% Convert the deck schedule into a MRST schedule by parsing the wells
 
 schedule = convertDeckScheduleToMRST(model, deck);
 state0 = initStateDeck(model,deck);
-state0.c    = zeros(G.cells.num, 1);
+state0.c = zeros(G.cells.num, 1);
 state0.cmax = state0.c;
 
 %% Visualize some properties of the model we have setup
@@ -52,7 +54,7 @@ state0.cmax = state0.c;
 % We gathered visualizing command for this tutorial in the following script
 
 example_name = 'spe9';
-vizSurfactantModel;
+% vizSurfactantModel;
 % close all;
 
 %% Run the schedule
@@ -63,9 +65,13 @@ vizSurfactantModel;
 fn = getPlotAfterStep(state0, model, schedule, 'plotWell', true, ...
                       'plotReservoir', false);
 
-[wellSolsSurfactant, statesSurfactant, reportSurfactant] = simulateScheduleAD(state0, model, schedule, 'afterStepFn', fn);
+% [wellSolsSurfactant, statesSurfactant, reportSurfactant] = simulateScheduleAD(state0, model, schedule, 'afterStepFn', fn);
+[wellSolsSurfactant, statesSurfactant, reportSurfactant] = simulateScheduleAD(state0, ...
+                                                  model, schedule);
 
-% we use schedulew to run the three phase black oil water flooding simulation.
+return
+
+% We use schedule to run the three phase black oil water flooding simulation.
 scheduleW = schedule;
 scheduleW.control(2).W(1).c = 0;
 scheduleW.control(2).W(2).c = 0;
