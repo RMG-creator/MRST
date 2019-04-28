@@ -19,9 +19,7 @@ classdef SurfRelativePermeability < BaseRelativePermeability
         function kr = evaluateOnDomain(prop, model, state)
 
             fluid = model.fluid;
-            sat = model.getProp(state, 'sat');
-            c   = model.getProp(state, 'surfactant');
-            Nc  = model.getProp(state, 'capillaryNumber');
+            [sat, c, Nc] = model.getProps(state, 'sat', 'surfactant', 'capillaryNumber');
 
             isSft = (value(c) > 0);
             m = 0*c;
