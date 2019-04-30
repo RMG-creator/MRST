@@ -51,9 +51,11 @@ You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 %}
 
-    opt = struct('checkTooMany',    true, ...
+    opt = struct('checkTooMany'   , true, ...
                  'continueOnError', true, ...
-                 'restartStep',     nan);
+                 'restartStep'    , nan, ...
+                 'resetData'      , false, ...
+                 'debugMode'      , false);
     opt = merge_options(opt, varargin{:});
     if isstruct(problems)
         problems = {problems};
@@ -117,6 +119,11 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             if restartStep > 1
                 state0 = state_handler{restartStep-1};
             end
+        elseif opt.resetData
+            state_handler.resetData();
+            report_handler.resetData();
+            doSim = true;
+            restartStep = 1;
         elseif ndata == nstep
             fprintf('-> Complete output found, nothing to do here.\n');
             % Already run!
@@ -124,31 +131,52 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             restartStep = nan;
         elseif ndata == 0
             fprintf('-> No output found, starting from first step...\n');
-            restartStep = 1;
         else
-            fprintf('-> Partial output found, starting from step %d of %d...\n', ndata+1, nstep);
-            state0 = state_handler{ndata};
-            restartStep = ndata + 1;
+            if ndata == nstep
+                fprintf('-> Complete output found, nothing to do here.\n');
+                % Already run!
+                doSim = false;
+                restartStep = nan;
+            elseif ndata == 0
+                fprintf('-> No output found, starting from first step...\n');
+                restartStep = 1;
+            else
+                fprintf('-> Partial output found, starting from step %d of %d...\n', ndata+1, nstep);
+                state0 = state_handler{ndata};
+                restartStep = ndata + 1;
+            end
         end
-
+        
         timer = tic();
         if doSim
-            mods = mrstModule();
-            try
+            if opt.debugMode
+                mods = mrstModule();
                 mrstModule('add', problem.Modules{:});
                 simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls,...
-                                                            'restartStep', restartStep,...
-                                                            'OutputHandler', state_handler, ...
-                                                            'WellOutputHandler', wellSol_handler, ...
-                                                            'ReportHandler', report_handler, ...
-                                                            problem.SimulatorSetup.ExtraArguments{:});
-            catch ex
-                mrstModule('reset', mods{:});
-                msg = ex.message;
-                ok = false;
-                fprintf('!!! Simulation resulted in fatal error !!!\n Exception thrown: %s\n', msg);
-                if ~opt.continueOnError
-                    rethrow(ex);
+                                   'restartStep', restartStep,...
+                                   'OutputHandler', state_handler, ...
+                                   'WellOutputHandler', wellSol_handler, ...
+                                   'ReportHandler', report_handler, ...
+                                   problem.SimulatorSetup.ExtraArguments{:});                
+                mrstModule('reset', problem.Modules{:});
+            else 
+                mods = mrstModule();
+                try
+                    mrstModule('add', problem.Modules{:});
+                    simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls,...
+                                       'restartStep', restartStep,...
+                                       'OutputHandler', state_handler, ...
+                                       'WellOutputHandler', wellSol_handler, ...
+                                       'ReportHandler', report_handler, ...
+                                       problem.SimulatorSetup.ExtraArguments{:});
+                catch ex
+                    mrstModule('reset', mods{:});
+                    msg = ex.message;
+                    ok = false;
+                    fprintf('!!! Simulation resulted in fatal error !!!\n Exception thrown: %s\n', msg);
+                    if ~opt.continueOnError
+                        rethrow(ex);
+                    end
                 end
             end
             if ok
