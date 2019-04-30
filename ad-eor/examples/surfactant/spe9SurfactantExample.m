@@ -69,16 +69,16 @@ fn = getPlotAfterStep(state0, model, schedule, 'plotWell', true, ...
 [wellSolsSurfactant, statesSurfactant, reportSurfactant] = simulateScheduleAD(state0, ...
                                                   model, schedule);
 
-return
+% return
 
 % We use schedule to run the three phase black oil water flooding simulation.
 scheduleW = schedule;
 scheduleW.control(2).W(1).c = 0;
 scheduleW.control(2).W(2).c = 0;
-[wellSols, states, report] = simulateScheduleAD(state0, model, scheduleW, 'afterStepFn', fn);                                              
+[wellSols, states, report] = simulateScheduleAD(state0, model, scheduleW);                                              
 %%
 figure()
-plotToolbar(G, states, 'startplayback', true, 'field', 's:1');
+plotToolbar(G, statesSurfactant, 'startplayback', true, 'field', 's:1');
 ylim([0, 1])
 %% Plot cell oil saturation in different tsteps of surfactant flooding and water flooding
 
