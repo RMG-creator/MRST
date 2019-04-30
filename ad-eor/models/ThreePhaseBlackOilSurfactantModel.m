@@ -35,7 +35,6 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
             % Add veloc calculation
             model = model.setupOperators(G, rock, varargin{:});
             model.surfactant = true;
-            model.FlowPropertyFunctions = SurfactantFlowPropertyFunctions(model);
             model = merge_options(model, varargin{:});
 
         end
@@ -77,6 +76,13 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
             model.checkProperty(state, 'Surfactant', [nc, 1], [1, 2]);
             model.checkProperty(state, 'SurfactantMax', [nc, 1], [1, 2]);
         end
+        
+        function model = validateModel(model, varargin)
+            if isempty(model.FlowPropertyFunctions)
+                model.FlowPropertyFunctions = SurfactantFlowPropertyFunctions(model);
+            end
+            model = validateModel@ThreePhaseBlackOilModel(model, varargin{:});
+        end 
 
         function [fn, index] = getVariableField(model, name, varargin)
             switch(lower(name))
