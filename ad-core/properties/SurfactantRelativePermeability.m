@@ -1,4 +1,4 @@
-classdef SurfRelativePermeability < BaseRelativePermeability
+classdef SurfactantRelativePermeability < BaseRelativePermeability
 
     properties
         zeroSurf
@@ -7,7 +7,7 @@ classdef SurfRelativePermeability < BaseRelativePermeability
     
         
     methods
-        function gp = SurfRelativePermeability(model, varargin)
+        function gp = SurfactantRelativePermeability(model, varargin)
             gp@BaseRelativePermeability(model, varargin{:});
             gp = gp.dependsOn({'sat', 'c', 'capillaryNumber'}, 'state');
             satreg  = model.rock.regions.saturation; 
