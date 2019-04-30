@@ -159,15 +159,12 @@ classdef NaturalVariablesCompositionalModel < ThreePhaseCompositionalModel
 
             % Update dx, dy
             if any(deltax(:) ~= 0) || any(deltay(:) ~= 0)
-                state.x = max(state.x + bsxfun(@times, deltax, w), 0);
-                state.y = max(state.y + bsxfun(@times, deltay, w), 0);
-                
-                state.x = capunit(state.x);
-                state.x = bsxfun(@rdivide, state.x, sum(state.x, 2));
+                [pureLiquid, pureVapor, twoPhase] = model.getFlag(state);
+                singlePhase = pureLiquid | pureVapor;
 
-                state.y = capunit(state.y);
-                state.y = bsxfun(@rdivide, state.y, sum(state.y, 2));
-                
+                state.components(singlePhase, :) = model.updateUnitRange(state.components(singlePhase, :), deltax(singlePhase, :), w(singlePhase));
+                state.x(twoPhase, :) = model.updateUnitRange(state.x(twoPhase, :), deltax(twoPhase, :), w(twoPhase));
+                state.y(twoPhase, :) = model.updateUnitRange(state.y(twoPhase, :), deltay(twoPhase, :), w(twoPhase));
                 xyUpdated = true;
             else
                 xyUpdated = false;
@@ -210,9 +207,9 @@ classdef NaturalVariablesCompositionalModel < ThreePhaseCompositionalModel
                 x = state.x;
                 y = state.y;
                 z = bsxfun(@times, x, state.L) + bsxfun(@times, 1-state.L, y);
-                z(isLiquid0, :) = state.x(isLiquid0, :);
-                z(isVapor0, :) = state.y(isVapor0, :);
-                z = bsxfun(@rdivide, z, sum(z, 2));
+%                 z(isLiquid0, :) = state.x(isLiquid0, :);
+%                 z(isVapor0, :) = state.y(isVapor0, :);
+%                 z = bsxfun(@rdivide, z, sum(z, 2));
             end
             
             if iteration == 1
@@ -279,8 +276,8 @@ classdef NaturalVariablesCompositionalModel < ThreePhaseCompositionalModel
 
             switched = toEpsOil | toEpsGas;
             if any(switched)
-                state.x(switched, :) = x(switched, :);
-                state.y(switched, :) = y(switched, :);
+%                 state.x(switched, :) = x(switched, :);
+%                 state.y(switched, :) = y(switched, :);
             end
             state.switchCount = state.switchCount + double(switched | toOnlyGas | toOnlyOil);
             if isa(model, 'TransportNaturalVariablesModel')
@@ -321,14 +318,14 @@ classdef NaturalVariablesCompositionalModel < ThreePhaseCompositionalModel
             end
             state = model.setFlag(state, isPureLiquid, isPureVapor);
             
-            if isPressure
-                pure = isPureVapor | isPureLiquid;
-                state.x(pure, :) = state.z0(pure, :);
-                state.y(pure, :) = state.z0(pure, :);
-            else
-                state.x(isPureVapor, :) = state.y(isPureVapor, :);
-                state.y(isPureLiquid, :) = state.x(isPureLiquid, :);                
-            end
+%             if isPressure
+%                 pure = isPureVapor | isPureLiquid;
+%                 state.x(pure, :) = state.z0(pure, :);
+%                 state.y(pure, :) = state.z0(pure, :);
+%             else
+%                 state.x(isPureVapor, :) = state.y(isPureVapor, :);
+%                 state.y(isPureLiquid, :) = state.x(isPureLiquid, :);                
+%             end
 
             state = model.updateSecondaryProperties(state);
             
@@ -456,6 +453,19 @@ classdef NaturalVariablesCompositionalModel < ThreePhaseCompositionalModel
                 dx = dx(~removed);
             else
                 ds = zeros(model.G.cells.num, 1);
+            end
+        end
+        
+        function [vu, v] = updateUnitRange(model, v0, dv, w)
+            if nargin < 3
+                w = 1;
+            end
+            if isempty(dv)
+                vu = v0;
+            else
+                v = v0 + bsxfun(@times, dv, w);
+                vu = min(max(v, 0), 1);
+                v = bsxfun(@rdivide, vu, sum(vu, 2));
             end
         end
     end

@@ -144,8 +144,8 @@ classdef GenericNaturalVariablesModel < NaturalVariablesCompositionalModel & Ext
             % initialization as AD.'
             compFluid = model.EOSModel.fluid;
             % Properties at current timestep
-            [p, sW, sO, sG, x, y] = model.getProps(state, ...
-                'pressure', 'water', 'so', 'sg', 'x', 'y');
+            [p, sW, sO, sG, x, y, z] = model.getProps(state, ...
+                'pressure', 'water', 'so', 'sg', 'x', 'y', 'z');
             [pureLiquid, pureVapor, twoPhase] = model.getFlag(state);
 
             if 1
@@ -156,10 +156,10 @@ classdef GenericNaturalVariablesModel < NaturalVariablesCompositionalModel & Ext
             end
             z_tol = model.EOSModel.minimumComposition;
 
-            x = ensureMinimumFraction(x, z_tol);
-            y = ensureMinimumFraction(y, z_tol);
-            x = expandMatrixToCell(x);
-            y = expandMatrixToCell(y);
+            z(twoPhase, :) = x(twoPhase, :);
+            z = expandMatrixToCell(z);
+            y_2ph = expandMatrixToCell(y(twoPhase, :));
+            
 
             ncomp = compFluid.getNumberOfComponents();
             [xnames, ynames, cnames] = deal(model.EOSModel.fluid.names);
@@ -175,7 +175,7 @@ classdef GenericNaturalVariablesModel < NaturalVariablesCompositionalModel & Ext
                 [w{:}] = deal(wtmp);
 
                 for i = 1:(ncomp-1)
-                    w{i} = y{i}(twoPhase);
+                    w{i} = y_2ph{i};
                 end
                 so = sO(twoPhase);
                 sg = sG(twoPhase);
@@ -193,7 +193,7 @@ classdef GenericNaturalVariablesModel < NaturalVariablesCompositionalModel & Ext
             local_origin = class(model);
             
             component_names = xnames(1:end-1);
-            comps = x(1:end-1);
+            comps = z(1:end-1);
             if model.water
                 component_names = [component_names, 'satw'];
                 comps = [comps, sW];
