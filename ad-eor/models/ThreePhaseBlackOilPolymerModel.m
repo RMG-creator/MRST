@@ -55,7 +55,7 @@ classdef ThreePhaseBlackOilPolymerModel < ThreePhaseBlackOilModel
 
         % --------------------------------------------------------------------%
         function [problem, state] = getEquations(model, state0, state, dt, drivingForces, varargin)
-            [problem, state] = equationsThreePhaseBlackOilPolymer2(state0, state, ...
+            [problem, state] = equationsThreePhaseBlackOilPolymer(state0, state, ...
                 model, dt, drivingForces, varargin{:});
         end
 
