@@ -54,345 +54,359 @@ You should have received a copy of the GNU General Public License
 along with MRST.  If not, see <http://www.gnu.org/licenses/>.
 %}
 
-opt = struct('Verbose', mrstVerbose, ...
-             'reverseMode', false,...
-             'resOnly', false,...
-             'iteration', -1);
+    opt = struct('Verbose', mrstVerbose, ...
+                 'reverseMode', false,...
+                 'resOnly', false,...
+                 'iteration', -1);
 
-opt = merge_options(opt, varargin{:});
+    opt = merge_options(opt, varargin{:});
 
-% Shorter names for some commonly used parts of the model and forces.
-s = model.operators;
-f = model.fluid;
-G = model.G;
-W = drivingForces.W;
-% Currently we do not support senario without wells.
-assert(isempty(drivingForces.bc) && isempty(drivingForces.src));
+    % Shorter names for some commonly used parts of the model and forces.
+    s = model.operators;
+    f = model.fluid;
+    G = model.G;
+    W = drivingForces.W;
+    % Currently we do not support senario without wells.
+    assert(isempty(drivingForces.bc) && isempty(drivingForces.src));
 
-% Properties at current timestep
-[p, sW, sG, rs, rv, c, cmax, wellSol] = model.getProps(state, ...
-   'pressure', 'water', 'gas', 'rs', 'rv', 'polymer', 'polymermax', 'wellsol');
+    % Properties at current timestep
+    [p, sW, sG, rs, rv, c, cmax, wellSol] = model.getProps(state, ...
+                                                      'pressure', 'water', 'gas', 'rs', 'rv', 'polymer', 'polymermax', 'wellsol');
 
-% Properties at previous timestep
-[p0, sW0, sG0, rs0, rv0, c0, cmax0, wellSol0] = model.getProps(state0, ...
-   'pressure', 'water', 'gas', 'rs', 'rv', 'polymer', 'polymermax', 'wellsol');
+    % Properties at previous timestep
+    [p0, sW0, sG0, rs0, rv0, c0, cmax0, wellSol0] = model.getProps(state0, ...
+                                                      'pressure', 'water', 'gas', 'rs', 'rv', 'polymer', 'polymermax', 'wellsol');
 
-[wellVars, wellVarNames, wellMap] = model.FacilityModel.getAllPrimaryVariables(wellSol);
+    [wellVars, wellVarNames, wellMap] = model.FacilityModel.getAllPrimaryVariables(wellSol);
 
-%Initialization of primary variables ----------------------------------
-st  = model.getCellStatusVO(state,  1-sW-sG,   sW,  sG);
-st0 = model.getCellStatusVO(state0, 1-sW0-sG0, sW0, sG0);
+    %Initialization of primary variables ----------------------------------
+    st  = model.getCellStatusVO(state,  1-sW-sG,   sW,  sG);
+    st0 = model.getCellStatusVO(state0, 1-sW0-sG0, sW0, sG0);
 
-if model.disgas || model.vapoil
-    % X is either Rs, Rv or Sg, depending on each cell's saturation status
-    x = st{1}.*rs + st{2}.*rv + st{3}.*sG;
-    gvar = 'x';
-else
-    x = sG;
-    gvar = 'sG';
-end
-
-if ~opt.resOnly
-    if ~opt.reverseMode
-        % define primary varible x and initialize
-        [p, sW, x, c, wellVars{:}] = ...
-            initVariablesADI(p, sW, x, c, wellVars{:});
+    if model.disgas || model.vapoil
+        % X is either Rs, Rv or Sg, depending on each cell's saturation status
+        x = st{1}.*rs + st{2}.*rv + st{3}.*sG;
+        gvar = 'x';
     else
-        x0 = st0{1}.*rs0 + st0{2}.*rv0 + st0{3}.*sG0;
-        % Set initial gradient to zero
-        wellVars0 = model.FacilityModel.getAllPrimaryVariables(wellSol0);
-        [p0, sW0, x0, c0, wellVars0{:}] = ...
-            initVariablesADI(p0, sW0, x0, c0, wellVars0{:}); %#ok
-        clear zw;
-        [sG0, rs0, rv0] = calculateHydrocarbonsFromStatusBO(model, st0, 1-sW, x0, rs0, rv0, p0);
+        x = sG;
+        gvar = 'sG';
     end
-end
 
-if ~opt.reverseMode
-    % Compute values from status flags. If we are in reverse mode, these
-    % values have already converged in the forward simulation.
-    [sG, rs, rv, rsSat, rvSat] = calculateHydrocarbonsFromStatusBO(model, st, 1-sW, x, rs, rv, p);
-end
-
-% We will solve for pressure, water and gas saturation (oil saturation
-% follows via the definition of saturations), polymer concentration and well rates + bhp.
-primaryVars = {'pressure', 'sW', gvar, 'polymer', wellVarNames{:}};
-
-% Evaluate relative permeability
-sO  = 1 - sW  - sG;
-sO0 = 1 - sW0 - sG0;
-[krW, krO, krG] = model.evaluateRelPerm({sW, sO, sG});
-
-% Multipliers for properties
-[pvMult, transMult, mobMult, pvMult0] = getMultipliers(model.fluid, p, p0);
-
-% Modifiy relperm by mobility multiplier (if any)
-krW = mobMult.*krW; krO = mobMult.*krO; krG = mobMult.*krG;
-
-% Compute transmissibility
-T = s.T.*transMult;
-
-% Gravity gradient per face
-gdz = model.getGravityGradient();
-
-% Evaluate water and polymer properties
-ads  = effads(c, cmax, f);
-ads0 = effads(c0, cmax0, f);
-[vW, vP, bW, muWMult, mobW, mobP, rhoW, pW, upcw, a] = ...
-    getFluxAndPropsWaterPolymer_BO(model, p, sW, c, ads, ...
-    krW, T, gdz);
-bW0 = f.bW(p0);
-
-
-% Evaluate oil properties
-[vO, bO, mobO, rhoO, p, upco] = getFluxAndPropsOil_BO(model, p, sO, krO, T, gdz, rs, ~st{1});
-bO0 = getbO_BO(model, p0, rs0, ~st0{1});
-
-% Evaluate gas properties
-bG0 = getbG_BO(model, p0, rv0, ~st0{2});
-[vG, bG, mobG, rhoG, pG, upcg] = getFluxAndPropsGas_BO(model, p, sG, krG, T, gdz, rv, ~st{2});
-
-if model.usingShear || model.usingShearLog || model.usingShearLogshrate
-    % calculate well perforation rates :
-    if ~isempty(W)
+    if ~opt.resOnly
         if ~opt.reverseMode
-            wc    = vertcat(W.cells);
-            perf2well = getPerforationToWellMapping(W);
-            sgn = vertcat(W.sign);
-            
-            wc_inj = wc(sgn(perf2well) > 0);
-            cw        = c(wc_inj);
-            
-            mob    = {mobW, mobO, mobG};
-            muWMultW = muWMult(wc_inj);
-            muWFullyMixed = model.fluid.muWMult(cw);
-
-            mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
-            rho = {rhoW, rhoO, rhoG};
-            
-            dissolved = model.getDissolutionMatrix(rs, rv);
-
-            
-            [src, wellsys, state.wellSol] = ...
-            model.FacilityModel.getWellContributions(wellSol0, wellSol, wellVars, ...
-                                    wellMap, p, mob, rho, dissolved, {c}, ...
-                                    dt, opt.iteration);
-
+            % define primary varible x and initialize
+            [p, sW, x, c, wellVars{:}] = ...
+                initVariablesADI(p, sW, x, c, wellVars{:});
         else
-            error('not supported yet!');
+            x0 = st0{1}.*rs0 + st0{2}.*rv0 + st0{3}.*sG0;
+            % Set initial gradient to zero
+            wellVars0 = model.FacilityModel.getAllPrimaryVariables(wellSol0);
+            [p0, sW0, x0, c0, wellVars0{:}] = ...
+                initVariablesADI(p0, sW0, x0, c0, wellVars0{:}); %#ok
+            clear zw;
+            [sG0, rs0, rv0] = calculateHydrocarbonsFromStatusBO(model, st0, 1-sW, x0, rs0, rv0, p0);
         end
+    end
+
+    if ~opt.reverseMode
+        % Compute values from status flags. If we are in reverse mode, these
+        % values have already converged in the forward simulation.
+        [sG, rs, rv, rsSat, rvSat] = calculateHydrocarbonsFromStatusBO(model, st, 1-sW, x, rs, rv, p);
+    end
+
+    % We will solve for pressure, water and gas saturation (oil saturation
+    % follows via the definition of saturations), polymer concentration and well rates + bhp.
+    primaryVars = {'pressure', 'sW', gvar, 'polymer', wellVarNames{:}};
+
+    % Evaluate relative permeability
+    sO  = 1 - sW  - sG;
+    sO0 = 1 - sW0 - sG0;
+    if model.water
+        sat = {sW, sO, sG};
+        sat0 = {sW0, sO0, sG0};
     else
-        error('The polymer model does not support scenarios without wells now!');
+        sat = {sO, sG};
+        sat0 = {sO0, sG0};
     end
 
-    % s = model.operators;  % The previous s was overwritten with saturations.
+    % Update state with AD-variables
+    state = model.setProps(state  , {'s', 'pressure', 'rs', 'rv', 'polymer'}, {sat , p , rs , rv, c});
+    state0 = model.setProps(state0, {'s', 'pressure', 'rs', 'rv', 'polymer'}, {sat0, p0, rs0, rv0, c0});
+    % Set up properties
+    state = model.initPropertyContainers(state);
+
+    [b, pv] = model.getProps(state, 'ShrinkageFactors', 'PoreVolume');
+    [b0, pv0] = model.getProps(state0, 'ShrinkageFactors', 'PoreVolume');
+    [phaseFlux, flags] = model.getProps(state, 'PhaseFlux',  'PhaseUpwindFlag');
+    [pressures, mob, rho] = model.getProps(state, 'PhasePressures', 'Mobility', 'Density');
+
+    [bW, bO, bG]       = deal(b{:});
+    [bW0, bO0, bG0]    = deal(b0{:});
+    [vW, vO, vG]       = deal(phaseFlux{:});
+    [upcw, upco, upcg] = deal(flags{:});
+    [mobW, mobO, mobG] = deal(mob{:});
+
+    vP = s.faceUpstr(upcw, c).*vW;
+    
+    muWMult  = model.getProp(state, 'PolymerViscMultiplier');
+    
+    % Store fluxes / properties for debugging / plotting, if requested.
+    if model.outputFluxes
+        state = model.storeFluxes(state, vW, vO, vG);
+    end
+    if model.extraStateOutput
+        state = model.storebfactors(state, bW, bO, bG);
+        state = model.storeMobilities(state, mob{:});
+        state = model.storeUpstreamIndices(state, upcw, upco, upcg);
+    end
+    
+    if model.usingShear || model.usingShearLog || model.usingShearLogshrate
+        % calculate well perforation rates :
+        if ~isempty(W)
+            if ~opt.reverseMode
+                wc    = vertcat(W.cells);
+                perf2well = getPerforationToWellMapping(W);
+                sgn = vertcat(W.sign);
+
+                wc_inj = wc(sgn(perf2well) > 0);
+                cw        = c(wc_inj);
+
+                muWMultW = muWMult(wc_inj);
+                muWFullyMixed = model.fluid.muWMult(cw);
+
+                mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
+
+                dissolved = model.getDissolutionMatrix(rs, rv);
+
+
+                [src, wellsys, state.wellSol] = ...
+                    model.FacilityModel.getWellContributions(wellSol0, wellSol, wellVars, ...
+                                                                       wellMap, p, mob, rho, dissolved, {c}, ...
+                                                                       dt, opt.iteration);
+
+            else
+                error('not supported yet!');
+            end
+        else
+            error('The polymer model does not support scenarios without wells now!');
+        end
+
+        
+
+        % s = model.operators;  % The previous s was overwritten with saturations.
+        poro =  s.pv./G.cells.volumes;
+        poroFace = s.faceAvg(poro);
+        faceA = G.faces.areas(s.internalConn);
+
+        % Bw * Fw should be flux
+        Vw = vW./(poroFace .* faceA);
+
+        % Using the upstreamed viscosity multiplier due to PLYVISC
+        muWMultf = s.faceUpstr(upcw, muWMult);
+
+        wc = vertcat(W.cells);
+        muWMultW = muWMult(wc);
+
+        % We assume the viscosity multiplier should be consistent with current
+        % way in handling the injection mobility, while the assumption is not
+        % verfied with any tests yet due to lack of the reference result.
+
+        [~, wciPoly, iInxW] = getWellPolymer(W);
+        cw = c(wc);
+        muWMultW(iInxW) = model.fluid.muWMult(cw(iInxW));
+
+        % Maybe should also apply this for PRODUCTION wells.
+        muWMultW((iInxW(wciPoly==0))) = 1;
+
+
+        % The water flux for the wells.
+        % TODO: check if state.wellSol.cqs should be AD variable or not
+        % if it is the case, maybe it is not evaluated correctly here.
+        cqs = vertcat(state.wellSol.cqs);
+        fluxWaterWell = value(cqs(:, 1));
+
+        poroW = poro(wc);
+
+        % the thickness of the well perforations in the cell
+        welldir = { W.dir };
+        i = cellfun('prodofsize', welldir) == 1;
+        welldir(i) = arrayfun(@(w) repmat(w.dir, [ numel(w.cells), 1 ]), ...
+                              W(i), 'UniformOutput', false);
+        welldir = vertcat(welldir{:});
+        [dx, dy, dz] = cellDims(G, wc);
+        thicknessWell = dz;
+        thicknessWell(welldir == 'Y') = dy(welldir == 'Y');
+        thicknessWell(welldir == 'X') = dx(welldir == 'X');
+
+        % For the wells
+        % The water velocity is computed at the reprensentative radius rR.
+        if ~isfield(W, 'rR')
+            error('The representative radius of the well is not initialized');
+        end
+        rR = vertcat(W.rR);
+
+        VwW = bW(wc).*fluxWaterWell./(poroW .* rR .* thicknessWell * 2 * pi);
+
+        muWMultW = value(muWMultW);
+        VwW = value(VwW);
+        muWMultf = value(muWMultf);
+        Vw = value(Vw);
+
+
+        if model.usingShearLogshrate
+            % calculating the shear rate based on the velocity
+            if ~opt.resOnly
+                krwF = s.faceUpstr(upcw, krW.val);
+                swF = s.faceUpstr(upcw, sW.val);
+            end
+
+            if opt.resOnly
+                krwF = s.faceUpstr(upcw, krW);
+                swF = s.faceUpstr(upcw, sW);
+            end
+
+            permF = s.T ./faceA;
+            temp = permF.*swF.*krwF;
+
+            index = find(abs(Vw) > 0.);
+            Vw(index) = 4.8 * Vw(index).*sqrt(poroFace(index) ./temp(index));
+
+            % calculating the shear rate for the wells
+            rW = vertcat(W.r);
+            VwW = 4.8 * VwW ./(2*rW);
+        end
+
+        if model.usingShear
+            shearMultf = computeShearMult(model.fluid, abs(Vw), muWMultf);
+            shearMultW = computeShearMult(model.fluid, abs(VwW), muWMultW);
+        end
+
+        if model.usingShearLog || model.usingShearLogshrate
+            shearMultf = computeShearMultLog(model.fluid, abs(Vw), muWMultf);
+            shearMultW = computeShearMultLog(model.fluid, abs(VwW), muWMultW);
+        end
+
+        vW = vW ./ shearMultf;
+        vP = vP ./ shearMultf;
+    end
+    
+    % EQUATIONS -----------------------------------------------------------
+
+    % Upstream weight b factors and multiply by interface fluxes to obtain the
+    % fluxes at standard conditions.
+    bWvW = s.faceUpstr(upcw, bW).*vW;
+    bOvO = s.faceUpstr(upco, bO).*vO;
+    bGvG = s.faceUpstr(upcg, bG).*vG;
+    bWvP = s.faceUpstr(upcw, bW).*vP;
+    % The first equation is the conservation of the water phase. This equation is
+    % straightforward, as water is assumed to remain in the aqua phase in the
+    % black oil model.
+    water = (1/dt).*(pv.*bW.*sW - pv0.*bW0.*sW0);
+    divWater = s.Div(bWvW);
+
+    % Second equation: mass conservation equation for the oil phase at surface
+    % conditions. This is any liquid oil at reservoir conditions, as well as
+    % any oil dissolved into the gas phase (if the model has vapoil enabled).
+    if model.vapoil
+        % The model allows oil to vaporize into the gas phase. The conservation
+        % equation for oil must then include the fraction present in the gas
+        % phase.
+        rvbGvG = s.faceUpstr(upcg, rv).*bGvG;
+        % Final equation
+        oil = (1/dt).*( pv .*(bO.* sO  + rv.* bG.* sG) - ...
+                        pv0.*(bO0.*sO0 + rv0.*bG0.*sG0));
+        divOil = s.Div(bOvO + rvbGvG);
+    else
+        oil = (1/dt).*(pv.*bO.*sO - pv0.*bO0.*sO0 );
+        divOil = s.Div(bOvO);
+    end
+
+    % Conservation of mass for gas. Again, we have two cases depending on
+    % whether the model allows us to dissolve the gas phase into the oil phase.
+    if model.disgas
+        % The gas transported in the oil phase.
+        rsbOvO = s.faceUpstr(upco, rs).*bOvO;
+        
+        gas = (1/dt).*(pv.* (bG.* sG  + rs.* bO.* sO) - ...
+                       pv0.*(bG0.*sG0 + rs0.*bO0.*sO0 ));
+        divGas = s.Div(bGvG + rsbOvO);
+    else
+        gas = (1/dt).*(pv.*bG.*sG - pv0.*bG0.*sG0 );
+        divGas = s.Div(bGvG);
+    end
+
+    % polymer in water equation :
+    
     poro =  s.pv./G.cells.volumes;
-    poroFace = s.faceAvg(poro);
-    faceA = G.faces.areas(s.internalConn);
-
-    % Bw * Fw should be flux
-    Vw = vW./(poroFace .* faceA);
-
-    % Using the upstreamed viscosity multiplier due to PLYVISC
-    muWMultf = s.faceUpstr(upcw, muWMult);
-
-    wc = vertcat(W.cells);
-    muWMultW = muWMult(wc);
-
-    % We assume the viscosity multiplier should be consistent with current
-    % way in handling the injection mobility, while the assumption is not
-    % verfied with any tests yet due to lack of the reference result.
-
-    [~, wciPoly, iInxW] = getWellPolymer(W);
-    cw = c(wc);
-    muWMultW(iInxW) = model.fluid.muWMult(cw(iInxW));
-
-    % Maybe should also apply this for PRODUCTION wells.
-    muWMultW((iInxW(wciPoly==0))) = 1;
-
-
-    % The water flux for the wells.
-    cqs = vertcat(state.wellSol.cqs);
-    fluxWaterWell = value(cqs(:, 1));
-
-    poroW = poro(wc);
-
-    % the thickness of the well perforations in the cell
-    welldir = { W.dir };
-    i = cellfun('prodofsize', welldir) == 1;
-    welldir(i) = arrayfun(@(w) repmat(w.dir, [ numel(w.cells), 1 ]), ...
-                          W(i), 'UniformOutput', false);
-    welldir = vertcat(welldir{:});
-    [dx, dy, dz] = cellDims(G, wc);
-    thicknessWell = dz;
-    thicknessWell(welldir == 'Y') = dy(welldir == 'Y');
-    thicknessWell(welldir == 'X') = dx(welldir == 'X');
-
-    % For the wells
-    % The water velocity is computed at the reprensentative radius rR.
-    if ~isfield(W, 'rR')
-        error('The representative radius of the well is not initialized');
-    end
-    rR = vertcat(W.rR);
-
-    VwW = bW(wc).*fluxWaterWell./(poroW .* rR .* thicknessWell * 2 * pi);
-
-    muWMultW = value(muWMultW);
-    VwW = value(VwW);
-    muWMultf = value(muWMultf);
-    Vw = value(Vw);
-
-
-    if model.usingShearLogshrate
-        % calculating the shear rate based on the velocity
-        if ~opt.resOnly
-            krwF = s.faceUpstr(upcw, krW.val);
-            swF = s.faceUpstr(upcw, sW.val);
+    ads  = model.getProp(state, 'PolymerAdsorption');
+    ads0 = model.getProp(state0, 'PolymerAdsorption');
+    polymer = ((1-f.dps)/dt).*(pv.*bW.*sW.*c - ...
+                                     pv0.*f.bW(p0).*sW0.*c0) + (1/dt).* ...
+              ( f.rhoR.*((1-poro)./poro).*(ads - ads0));
+    divPolymer = s.Div(bWvP);
+    
+    % Applying correction to the polymer equation when the Jacobian is
+    % prolematic for some cells.
+    % Typically it is due to totally and almost non-existence of water.
+    if ~opt.resOnly
+        epsilon = 1.e-8;
+        % the first way is based on the diagonal values of the resulting
+        % Jacobian matrix
+        eps = sqrt(epsilon)*mean(abs(diag(polymer.jac{4})));
+        % sometimes there is no water in the whole domain
+        if (eps == 0.)
+            eps = epsilon;
         end
-
-        if opt.resOnly
-            krwF = s.faceUpstr(upcw, krW);
-            swF = s.faceUpstr(upcw, sW);
-        end
-
-        permF = s.T ./faceA;
-        temp = permF.*swF.*krwF;
-
-        index = find(abs(Vw) > 0.);
-        Vw(index) = 4.8 * Vw(index).*sqrt(poroFace(index) ./temp(index));
-
-        % calculating the shear rate for the wells
-        rW = vertcat(W.r);
-        VwW = 4.8 * VwW ./(2*rW);
+        % bad marks the cells prolematic in evaluating Jacobian
+        bad = abs(diag(polymer.jac{4})) < eps;
+        % the other way is to choose based on the water saturation
+        polymer(bad) = c(bad);
     end
 
-    if model.usingShear
-        shearMultf = computeShearMult(model.fluid, abs(Vw), muWMultf);
-        shearMultW = computeShearMult(model.fluid, abs(VwW), muWMultW);
+    eqs = {water, oil, gas, polymer};
+    divTerms = {divWater, divOil, divGas, divPolymer};
+    names = {'water', 'oil', 'gas', 'polymer'};
+    types = {'cell', 'cell', 'cell', 'cell'};
+
+    % Add in any fluxes / source terms prescribed as boundary conditions.
+    dissolved = model.getDissolutionMatrix(rs, rv);
+    [eqs, state] = addBoundaryConditionsAndSources(model, eqs, names, types, state, ...
+                                                   pressures, sat, mob, rho, ...
+                                                   dissolved, {c}, ...
+                                                   drivingForces);
+
+    % Finally, add in and setup well equations
+    wc    = vertcat(W.cells);
+    perf2well = getPerforationToWellMapping(W);
+    sgn = vertcat(W.sign);
+
+    wc_inj = wc(sgn(perf2well) > 0);
+    cw     = c(wc_inj);
+
+    % remove the old viscosity and applying the fully mixed viscosity
+    muWMultW = muWMult(wc_inj);
+    muWFullyMixed = model.fluid.muWMult(cw);
+
+    mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
+
+
+    if model.usingShear || model.usingShearLog || model.usingShearLogshrate
+        % applying the shear effects
+        mob{1}(wc) = mob{1}(wc)./shearMultW;
+    end                                           
+                                               
+    % Finally, add in and setup well equations
+    [eqs, names, types, state.wellSol] = model.insertWellEquations(eqs, names, ...
+                                                      types, wellSol0, wellSol, ...
+                                                      wellVars, wellMap, p, ...
+                                                      mob, rho, dissolved, ...
+                                                      {c}, dt, opt);
+    % Finally, adding divergence terms to equations
+    for i = 1:numel(divTerms)
+        eqs{i} = eqs{i} + divTerms{i};
     end
 
-    if model.usingShearLog || model.usingShearLogshrate
-        shearMultf = computeShearMultLog(model.fluid, abs(Vw), muWMultf);
-        shearMultW = computeShearMultLog(model.fluid, abs(VwW), muWMultW);
-    end
-
-    vW = vW ./ shearMultf;
-    vP = vP ./ shearMultf;
-end
-
-% EQUATIONS -----------------------------------------------------------
-
-% Upstream weight b factors and multiply by interface fluxes to obtain the
-% fluxes at standard conditions.
-bOvO = s.faceUpstr(upco, bO).*vO;
-bWvW = s.faceUpstr(upcw, bW).*vW;
-bGvG = s.faceUpstr(upcg, bG).*vG;
-bWvP = s.faceUpstr(upcw, bW).*vP;
-
-% Store fluxes / properties for debugging / plotting, if requested.
-if model.outputFluxes
-    state = model.storeFluxes(state, vW, vO, vG);
-end
-if model.extraStateOutput
-    state = model.storebfactors(state, bW, bO, bG);
-    state = model.storeMobilities(state, mobW, mobO, mobG);
-    state = model.storeUpstreamIndices(state, upcw, upco, upcg);
-end
-% EQUATIONS ---------------------------------------------------------------
-
-% The first equation is the conservation of the water phase. This equation is
-% straightforward, as water is assumed to remain in the aqua phase in the
-% black oil model.
-water = (s.pv/dt).*( pvMult.*bW.*sW - pvMult0.*bW0.*sW0 ) + s.Div(bWvW);
-
-% Second equation: mass conservation equation for the oil phase at surface
-% conditions. This is any liquid oil at reservoir conditions, as well as
-% any oil dissolved into the gas phase (if the model has vapoil enabled).
-if model.vapoil
-    % The model allows oil to vaporize into the gas phase. The conservation
-    % equation for oil must then include the fraction present in the gas
-    % phase.
-    rvbGvG = s.faceUpstr(upcg, rv).*bGvG;
-    % Final equation
-    oil = (s.pv/dt).*( pvMult.* (bO.* sO  + rv.* bG.* sG) - ...
-        pvMult0.*(bO0.*sO0 + rv0.*bG0.*sG0) ) + ...
-        s.Div(bOvO + rvbGvG);
-else
-    oil = (s.pv/dt).*( pvMult.*bO.*sO - pvMult0.*bO0.*sO0 ) + s.Div(bOvO);
-end
-
-% Conservation of mass for gas. Again, we have two cases depending on
-% whether the model allows us to dissolve the gas phase into the oil phase.
-if model.disgas
-    % The gas transported in the oil phase.
-    rsbOvO = s.faceUpstr(upco, rs).*bOvO;
-
-    gas = (s.pv/dt).*( pvMult.* (bG.* sG  + rs.* bO.* sO) - ...
-        pvMult0.*(bG0.*sG0 + rs0.*bO0.*sO0 ) ) + ...
-        s.Div(bGvG + rsbOvO);
-else
-    gas = (s.pv/dt).*( pvMult.*bG.*sG - pvMult0.*bG0.*sG0 ) + s.Div(bGvG);
-end
-
-% polymer in water equation :
-poro =  s.pv./G.cells.volumes;
-polymer = (s.pv.*(1-f.dps)/dt).*(pvMult.*bW.*sW.*c - ...
-   pvMult0.*f.bW(p0).*sW0.*c0) + (s.pv/dt).* ...
-   ( f.rhoR.*((1-poro)./poro).*(ads - ads0)) + s.Div(bWvP);
-
-% Applying correction to the polymer equation when the Jacobian is
-% prolematic for some cells.
-% Typically it is due to totally and almost non-existence of water.
-if ~opt.resOnly
-    epsilon = 1.e-8;
-    % the first way is based on the diagonal values of the resulting
-    % Jacobian matrix
-    eps = sqrt(epsilon)*mean(abs(diag(polymer.jac{4})));
-    % sometimes there is no water in the whole domain
-    if (eps == 0.)
-        eps = epsilon;
-    end
-    % bad marks the cells prolematic in evaluating Jacobian
-    bad = abs(diag(polymer.jac{4})) < eps;
-    % the other way is to choose based on the water saturation
-    polymer(bad) = c(bad);
-end
-eqs = {water, oil, gas, polymer};
-names = {'water', 'oil', 'gas', 'polymer'};
-types = {'cell', 'cell', 'cell', 'cell'};
-
-rho = {rhoW, rhoO, rhoG};
-mob = {mobW, mobO, mobG};
-sat = {sW, sO, sG};
-dissolved = model.getDissolutionMatrix(rs, rv);
-
-[eqs, state] = addBoundaryConditionsAndSources(model, eqs, names, types, state, ...
-                                                 {pW, p, pG}, sat, mob, rho, ...
-                                                 dissolved, {c}, ...
-                                                 drivingForces);
-
-% Finally, add in and setup well equations
-wc    = vertcat(W.cells);
-perf2well = getPerforationToWellMapping(W);
-sgn = vertcat(W.sign);
-
-wc_inj = wc(sgn(perf2well) > 0);
-cw     = c(wc_inj);
-
-% remove the old viscosity and applying the fully mixed viscosity
-muWMultW = muWMult(wc_inj);
-muWFullyMixed = model.fluid.muWMult(cw);
-
-mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
-
-
-if model.usingShear || model.usingShearLog || model.usingShearLogshrate
-    % applying the shear effects
-    mob{1}(wc) = mob{1}(wc)./shearMultW;
-end
-
-[eqs, names, types, state.wellSol] = model.insertWellEquations(eqs, names, types, wellSol0, wellSol, wellVars, wellMap, p, mob, rho, dissolved, {c}, dt, opt);
-problem = LinearizedProblem(eqs, types, names, primaryVars, state, dt);
+    problem = LinearizedProblem(eqs, types, names, primaryVars, state, dt);
 
 end
 
@@ -426,11 +440,11 @@ end
 
 % Effective adsorption, depending of desorption or not
 function y = effads(c, cmax, f)
-   if f.adsInx == 2
-      y = f.ads(max(c, cmax));
-   else
-      y = f.ads(c);
-   end
+    if f.adsInx == 2
+        y = f.ads(max(c, cmax));
+    else
+        y = f.ads(c);
+    end
 end
 
 %--------------------------------------------------------------------------
