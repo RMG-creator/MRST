@@ -54,8 +54,8 @@ state0.cmax = state0.c;
 %
 % We gathered visualizing command for this tutorial in the following script
 
-example_name = '2D';
-vizSurfactantModel;
+% example_name = '2D';
+% vizSurfactantModel;
 % close all;
 
 %% Run the schedule and set up the initial state

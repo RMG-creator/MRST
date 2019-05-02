@@ -130,7 +130,7 @@ function [problem, state] = equationsThreePhaseBlackOilSurfactant(state0, state,
 
     % Update state with AD-variables
     state = model.setProps(state  , {'s', 'pressure', 'rs', 'rv', 'surfactant'}, {sat , p , rs , rv, c});
-    state0 = model.setProps(state0, {'s', 'pressure', 'rs', 'rv'}, {sat0, p0, rs0, rv0});
+    state0 = model.setProps(state0, {'s', 'pressure', 'rs', 'rv', 'surfactant'}, {sat0, p0, rs0, rv0, c0});
     % Set up properties
     state = model.initPropertyContainers(state);
 
