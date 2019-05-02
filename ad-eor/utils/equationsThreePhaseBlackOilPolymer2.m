@@ -359,6 +359,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     end
 
     eqs = {water, oil, gas, polymer};
+    divTerms = {divWater, divOil, divGas, divPolymer};
     names = {'water', 'oil', 'gas', 'polymer'};
     types = {'cell', 'cell', 'cell', 'cell'};
 
