@@ -87,10 +87,17 @@ classdef ThreePhaseBlackOilPolymerModel < ThreePhaseBlackOilModel
                 state = model.setProp(state, 'polymermax', max(cmax, c));
             end
         end
+        % --------------------------------------------------------------------%
+        function model = validateModel(model, varargin)
+            if isempty(model.FlowPropertyFunctions)
+                model.FlowPropertyFunctions = PolymerFlowPropertyFunctions(model);
+            end
+            model = validateModel@ThreePhaseBlackOilModel(model, varargin{:});
+        end
 
         % --------------------------------------------------------------------%
         function [fn, index] = getVariableField(model, name, varargin)
-            % Get the index/name mapping for the model (such as where
+        % Get the index/name mapping for the model (such as where
             % pressure or water saturation is located in state)
             switch(lower(name))
                 case {'polymer', 'polymermax'}

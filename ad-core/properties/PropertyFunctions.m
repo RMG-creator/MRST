@@ -37,7 +37,7 @@ classdef PropertyFunctions
 
         function v = get(props, model, state, name)
             % Get value of a property (possibily triggering several function
-            % evaluations if required.
+            % evaluations if required).
             if ~props.isPropertyEvaluated(model, state, name)
                 state = props.evaluatePropertyWithDependencies(model, state, name);
             end
