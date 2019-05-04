@@ -3,6 +3,8 @@ classdef PolymerFlowPropertyFunctions < BlackOilFlowPropertyFunctions
     properties
         PolymerAdsorption;
         PolymerViscMultiplier;
+        PolymerPhaseFlux;
+        FaceConcentration;
     end
     
     methods
@@ -12,6 +14,8 @@ classdef PolymerFlowPropertyFunctions < BlackOilFlowPropertyFunctions
             props.PolymerViscMultiplier = PolymerViscMultiplier(model, sat);
             props.Viscosity             = PolymerViscosity(model, sat);
             props.PolymerAdsorption     = PolymerAdsorption(model, sat);
+            props.FaceConcentration     = FaceConcentration(model, sat);
+            props.PolymerPhaseFlux      = PolymerPhaseFlux(model, sat);
         end
     end
 end

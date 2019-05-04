@@ -135,31 +135,22 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     % Set up properties
     state = model.initPropertyContainers(state);
 
+    ads  = model.getProp(state, 'PolymerAdsorption');
+    ads0 = model.getProp(state0, 'PolymerAdsorption');
+    
+    muWMult  = model.getProp(state, 'PolymerViscMultiplier');
+    
     [b, pv] = model.getProps(state, 'ShrinkageFactors', 'PoreVolume');
     [b0, pv0] = model.getProps(state0, 'ShrinkageFactors', 'PoreVolume');
-    [phaseFlux, flags] = model.getProps(state, 'PhaseFlux',  'PhaseUpwindFlag');
+    [phaseFlux, flags] = model.getProps(state, 'PolymerPhaseFlux',  'PhaseUpwindFlag');
     [pressures, mob, rho] = model.getProps(state, 'PhasePressures', 'Mobility', 'Density');
 
     [bW, bO, bG]       = deal(b{:});
     [bW0, bO0, bG0]    = deal(b0{:});
-    [vW, vO, vG]       = deal(phaseFlux{:});
+    [vW, vO, vG, vP]       = deal(phaseFlux{:});
     [upcw, upco, upcg] = deal(flags{:});
     [mobW, mobO, mobG] = deal(mob{:});
-
-    vP = s.faceUpstr(upcw, c).*vW;
-    
-    muWMult  = model.getProp(state, 'PolymerViscMultiplier');
-    
-    % Store fluxes / properties for debugging / plotting, if requested.
-    if model.outputFluxes
-        state = model.storeFluxes(state, vW, vO, vG);
-    end
-    if model.extraStateOutput
-        state = model.storebfactors(state, bW, bO, bG);
-        state = model.storeMobilities(state, mob{:});
-        state = model.storeUpstreamIndices(state, upcw, upco, upcg);
-    end
-    
+       
     if model.usingShear || model.usingShearLog || model.usingShearLogshrate
         % calculate well perforation rates :
         if ~isempty(W)
@@ -298,6 +289,16 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     bOvO = s.faceUpstr(upco, bO).*vO;
     bGvG = s.faceUpstr(upcg, bG).*vG;
     bWvP = s.faceUpstr(upcw, bW).*vP;
+    
+    if model.outputFluxes
+        state = model.storeFluxes(state, vW, vO, vG);
+    end
+    if model.extraStateOutput
+        state = model.storebfactors(state, bW, bO, bG);
+        state = model.storeMobilities(state, mob{:});
+        state = model.storeUpstreamIndices(state, upcw, upco, upcg);
+    end
+    
     % The first equation is the conservation of the water phase. This equation is
     % straightforward, as water is assumed to remain in the aqua phase in the
     % black oil model.
@@ -338,10 +339,8 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     % polymer in water equation :
     
     poro =  s.pv./G.cells.volumes;
-    ads  = model.getProp(state, 'PolymerAdsorption');
-    ads0 = model.getProp(state0, 'PolymerAdsorption');
     polymer = ((1-f.dps)/dt).*(pv.*bW.*sW.*c - ...
-                                     pv0.*f.bW(p0).*sW0.*c0) + (1/dt).* ...
+                                     pv0.*f.bW(p0).*sW0.*c0) + (s.pv/dt).* ...
               ( f.rhoR.*((1-poro)./poro).*(ads - ads0));
     divPolymer = s.Div(bWvP);
     
