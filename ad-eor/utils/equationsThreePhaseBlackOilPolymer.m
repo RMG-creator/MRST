@@ -138,18 +138,34 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     ads  = model.getProp(state, 'PolymerAdsorption');
     ads0 = model.getProp(state0, 'PolymerAdsorption');
     
-    muWMult  = model.getProp(state, 'PolymerViscMultiplier');
-    
     [b, pv] = model.getProps(state, 'ShrinkageFactors', 'PoreVolume');
     [b0, pv0] = model.getProps(state0, 'ShrinkageFactors', 'PoreVolume');
-    [phaseFlux, flags] = model.getProps(state, 'PolymerPhaseFlux',  'PhaseUpwindFlag');
-    [pressures, mob, rho] = model.getProps(state, 'PhasePressures', 'Mobility', 'Density');
+    [phaseFlux, flags] = model.getProps(state, 'PhaseFlux',  'PhaseUpwindFlag');
+    [pressures, mob, rho, mu] = model.getProps(state, 'PhasePressures', 'Mobility', 'Density', 'Viscosity');
 
     [bW, bO, bG]       = deal(b{:});
     [bW0, bO0, bG0]    = deal(b0{:});
-    [vW, vO, vG, vP]       = deal(phaseFlux{:});
+    [vW, vO, vG]       = deal(phaseFlux{:});
     [upcw, upco, upcg] = deal(flags{:});
     [mobW, mobO, mobG] = deal(mob{:});
+    
+    mixpar = f.mixPar;
+    cbar   = c/f.cmax;
+    a = f.muWMult(f.cmax).^(1-mixpar);
+    cf = s.faceUpstr(upcw, c);
+    muWMult  = model.getProp(state, 'PolymerViscMultiplier');
+    muPMult  = a+(1-a)*cbar;
+    muPMultf = s.faceUpstr(upcw, muPMult);    
+    vP = vW./muPMultf.*cf;    
+    
+    
+
+    b = 1./(1 - cbar + cbar./a);
+    % The viscosity multiplier only results from the polymer mixing.
+    muWeffMult = b.*f.muWMult(c).^mixpar;
+    
+    
+    
        
     if model.usingShear || model.usingShearLog || model.usingShearLogshrate
         % calculate well perforation rates :
@@ -162,7 +178,9 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                 wc_inj = wc(sgn(perf2well) > 0);
                 cw        = c(wc_inj);
 
-                muWMultW = muWMult(wc_inj);
+%                 muWMultW = muWMult(wc_inj);
+                muWMultW = muWeffMult(wc_inj);
+                
                 muWFullyMixed = model.fluid.muWMult(cw);
 
                 mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
@@ -193,10 +211,14 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         Vw = vW./(poroFace .* faceA);
 
         % Using the upstreamed viscosity multiplier due to PLYVISC
-        muWMultf = s.faceUpstr(upcw, muWMult);
+%         muWMultf = s.faceUpstr(upcw, muWMult);
+        muWMultf = s.faceUpstr(upcw, muWeffMult);
+        
 
         wc = vertcat(W.cells);
-        muWMultW = muWMult(wc);
+%         muWMultW = muWMult(wc);
+        muWMultW = muWeffMult(wc);
+        
 
         % We assume the viscosity multiplier should be consistent with current
         % way in handling the injection mobility, while the assumption is not
@@ -295,7 +317,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     end
     if model.extraStateOutput
         state = model.storebfactors(state, bW, bO, bG);
-        state = model.storeMobilities(state, mob{:});
+        state = model.storeMobilities(state, mobW, mobO, mobG);
         state = model.storeUpstreamIndices(state, upcw, upco, upcg);
     end
     
@@ -383,7 +405,9 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     cw     = c(wc_inj);
 
     % remove the old viscosity and applying the fully mixed viscosity
-    muWMultW = muWMult(wc_inj);
+%     muWMultW = muWMult(wc_inj);
+    muWMultW = muWeffMult(wc_inj);
+    
     muWFullyMixed = model.fluid.muWMult(cw);
 
     mob{1}(wc_inj) = mob{1}(wc_inj) ./ muWFullyMixed .* muWMultW;
@@ -433,17 +457,6 @@ function [wPoly, wciPoly, iInxW] = getWellPolymer(W)
     iInx  = rldecode(inj, nPerf);
     iInx  = find(iInx);
     iInxW = iInx(compi(perf2well(iInx),1)==1);
-end
-
-%--------------------------------------------------------------------------
-
-% Effective adsorption, depending of desorption or not
-function y = effads(c, cmax, f)
-    if f.adsInx == 2
-        y = f.ads(max(c, cmax));
-    else
-        y = f.ads(c);
-    end
 end
 
 %--------------------------------------------------------------------------
