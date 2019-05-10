@@ -11,8 +11,6 @@ classdef FluxDiscretization < PropertyFunctions
         ComponentTotalFlux % Total mass flux for each component
         ComponentPhaseFlux % Phase fluxes for each component
         Transmissibility % Face-based transmissibility
-        PolymerPhaseFlux % Polymer phase volumetric fluxes
-        FaceConcentration % Polymer or surfactant concentration on face
     end
 
     properties (Access = protected)
@@ -56,7 +54,6 @@ classdef FluxDiscretization < PropertyFunctions
             props.ComponentPhaseFlux = ComponentPhaseFlux(model);
             props.ComponentTotalFlux = ComponentTotalFlux(model);
             props.PhaseFlux = PhaseFlux(model);
-            props.PolymerPhaseFlux = PolymerPhaseFlux(model);            
             
             % Flow discretizer
             props.FlowStateBuilder = ImplicitFlowStateBuilder();

@@ -1,6 +1,6 @@
-classdef PolymerViscosity < BlackOilViscosity
+classdef BlackOilPolymerViscosity < BlackOilViscosity
     methods
-        function gp = PolymerViscosity(prop, varargin)
+        function gp = BlackOilPolymerViscosity(prop, varargin)
             gp@BlackOilViscosity(prop, varargin{:});
             gp = addPropertyDependence(gp, {'PolymerViscMultiplier'});
             gp = addPropertyDependence(gp, {'polymer'}, 'state');
