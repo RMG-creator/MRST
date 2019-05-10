@@ -12,7 +12,7 @@ classdef PolymerFlowPropertyFunctions < BlackOilFlowPropertyFunctions
             sat = props.getRegionSaturation(model);
             props.PolymerViscMultiplier = PolymerViscMultiplier(model, sat);
             props.EffectiveMixturePolymerViscMultiplier = EffectiveMixturePolymerViscMultiplier(model, sat);
-            props.Viscosity             = PolymerViscosity(model, sat);
+            props.Viscosity             = BlackOilPolymerViscosity(model, sat);
             props.PolymerAdsorption     = PolymerAdsorption(model, sat);
         end
     end
