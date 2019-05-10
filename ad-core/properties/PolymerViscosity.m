@@ -7,13 +7,9 @@ classdef PolymerViscosity < BlackOilViscosity
         end
         
         function mu = evaluateOnDomain(prop, model, state)
-            
-            c   = model.getProp(state, 'polymer');
             muWMult = prop.getEvaluatedDependencies(state, 'PolymerViscMultiplier');
             mu = prop.evaluateOnDomain@BlackOilViscosity(model, state);
-
-            mu{1} = mu{1}.*muWMult;
-            
+            mu{1} = mu{1}.*muWMult;            
         end
     end
 end
