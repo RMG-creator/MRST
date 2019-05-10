@@ -32,12 +32,12 @@ function [problem, state] = equationsTracer(state0, state, model, dt, drivingFor
     % bc term requires following fields
     % - flux2qextmap : mapping from flux values to flux on external faces
     %                  oriented towards outer domain
-    % - flux2qbcmap : mapping from flux values to flux on the source face
+    % - flux2qbcmap : mapping from flux values to flux on the boundary injection face
     %                  oriented towards outer domain
-    % - bc2extmap : mapping from values at source faces to external faces
+    % - bc2extmap : mapping from values at boundary injection faces to external faces
     % - ext2cellmap : mapping from values at external faces to adjacent cell
     %                 (used to compute influx)
-    % - tracers : concentration of the tracers at the source faces.
+    % - tracers : concentration of the tracers at the boundary injection faces.
     
     if ~isempty(bc)
         flux2qextmap = bc.flux2qextmap;

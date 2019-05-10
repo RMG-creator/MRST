@@ -60,9 +60,9 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     if isstruct(problems)
         problems = {problems};
     end
-    
+
     assert(iscell(problems));
-    
+
     np = numel(problems);
     ok = true(np, 1);
     status = repmat(struct('Message', '', 'WallTime', [], 'RestartIndex', nan), np, 1);
@@ -73,7 +73,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
         state0 = problem.SimulatorSetup.state0;
         model = problem.SimulatorSetup.model;
         nls = problem.SimulatorSetup.NonLinearSolver;
-        
+
         state_handler = problem.OutputHandlers.states;
         wellSol_handler = problem.OutputHandlers.wellSols;
         report_handler = problem.OutputHandlers.reports;
@@ -87,18 +87,18 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             % This is a serious error!
             assert(ndata <= nstep, 'Too much data exists for %s! Problem may have been redefined.', problems{i}.Name);
         end
-        
+
         firstLine = sprintf(' Case "%s" (%s)',...
                 problem.BaseName, problem.Name);
         secondLine = sprintf(' Description: "%s"',...
                 problem.Description);
-        
+
         n1 = numel(firstLine);
         n2 = numel(secondLine);
         len = max(n1, n2);
-        
+
         lim = [repmat('*', 1, len+4), '\n'];
-        
+
         if i > 1
             fprintf('\n')
         end
@@ -146,7 +146,7 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                 restartStep = ndata + 1;
             end
         end
-        
+
         timer = tic();
         if doSim
             if opt.debugMode
@@ -157,9 +157,10 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
                                    'OutputHandler', state_handler, ...
                                    'WellOutputHandler', wellSol_handler, ...
                                    'ReportHandler', report_handler, ...
-                                   problem.SimulatorSetup.ExtraArguments{:});                
-                mrstModule('reset', problem.Modules{:});
-            else 
+                                   problem.SimulatorSetup.ExtraArguments{:});
+
+                mrstModule('reset', mods{:});
+            else
                 mods = mrstModule();
                 try
                     mrstModule('add', problem.Modules{:});
@@ -181,9 +182,31 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             end
             if ok
                 mrstModule('reset', problem.Modules{:});
+            else
+                mods = mrstModule();
+                try
+                    mrstModule('add', problem.Modules{:});
+                    simulateScheduleAD(state0, model, schedule, 'nonlinearsolver', nls,...
+                                       'restartStep', restartStep,...
+                                       'OutputHandler', state_handler, ...
+                                       'WellOutputHandler', wellSol_handler, ...
+                                       'ReportHandler', report_handler, ...
+                                       problem.SimulatorSetup.ExtraArguments{:});
+                catch ex
+                    mrstModule('reset', mods{:});
+                    msg = ex.message;
+                    ok = false;
+                    fprintf('!!! Simulation resulted in fatal error !!!\n Exception thrown: %s\n', msg);
+                    if ~opt.continueOnError
+                        rethrow(ex);
+                    end
+                end
+                if ok
+                    mrstModule('reset', problem.Modules{:});
+                end
             end
         end
-        
+
         status(i).Message = msg;
         status(i).WallTime = toc(timer);
         status(i).RestartIndex = restartStep;
