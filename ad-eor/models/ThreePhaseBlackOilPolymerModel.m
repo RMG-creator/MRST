@@ -92,6 +92,9 @@ classdef ThreePhaseBlackOilPolymerModel < ThreePhaseBlackOilModel
             if isempty(model.FlowPropertyFunctions)
                 model.FlowPropertyFunctions = PolymerFlowPropertyFunctions(model);
             end
+            if isempty(model.FluxDiscretization)
+                model.FluxDiscretization = PolymerFluxDiscretization(model); %#ok
+            end
             model = validateModel@ThreePhaseBlackOilModel(model, varargin{:});
         end
 

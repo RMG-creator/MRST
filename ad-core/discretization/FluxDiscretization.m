@@ -47,12 +47,14 @@ classdef FluxDiscretization < PropertyFunctions
             
             % Face values - typically upwinded
             props.FaceComponentMobility = FaceComponentMobility(model, upstr);
-            props.FaceMobility = FaceMobility(model, upstr);
+            props.FaceMobility = FaceMobility(model, upstr);            
+            props.FaceConcentration = FaceConcentration(model, upstr);            
+            
             % 
             props.ComponentPhaseFlux = ComponentPhaseFlux(model);
             props.ComponentTotalFlux = ComponentTotalFlux(model);
             props.PhaseFlux = PhaseFlux(model);
-
+            
             % Flow discretizer
             props.FlowStateBuilder = ImplicitFlowStateBuilder();
             
