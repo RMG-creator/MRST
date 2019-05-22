@@ -9,12 +9,12 @@ classdef PolymerViscMultiplier < GridProperty
             gp = gp.dependsOn({'EffectiveMixturePolymerViscMultiplier'});
         end
 
-        function muWMult = evaluateOnDomain(prop, model, state)
+        function muWMultp = evaluateOnDomain(prop, model, state)
             ads = model.getProp(state, 'PolymerAdsorption');
             muWeffMult = model.getProp(state, 'EffectiveMixturePolymerViscMultiplier');
             fluid = model.fluid;
             permRed = 1 + ((fluid.rrf - 1)./fluid.adsMax).*ads;
-            muWMult  = muWeffMult.*permRed;
+            muWMultp  = muWeffMult.*permRed;
         end
     end
 end

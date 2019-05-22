@@ -61,7 +61,12 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     hassurf = check('surfact');
     
     arg = {G, [], fluid, varargin{:}};
-    if haspoly
+    if haspoly && hassurf
+        % Surfactant-Polymer EOR
+        mrstModule add ad-eor
+        assert(haswat, 'Polymer model requires water phase to be present');
+        model = ThreePhaseSurfactantPolymerModel(arg{:});
+    elseif haspoly && ~hassurf
         % Polymer EOR
         mrstModule add ad-eor
         assert(~hassurf, 'Polymer model does not support surfactant');
@@ -74,10 +79,13 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     elseif hassurf
         % Surfactant EOR
         mrstModule add ad-eor
-        assert(~hasgas, 'Surfactant model does not support gas');
         assert(~haspoly, 'Surfactant model does not support polymer');
         assert(haswat, 'Surfactant model requires water phase to be present');
-        model = OilWaterSurfactantModel(arg{:});
+        if hasgas
+            model = ThreePhaseBlackOilSurfactantModel(arg{:});
+        else
+            model = OilWaterSurfactantModel(arg{:});
+        end
     else
         % Blackoil three phase
         model = GenericBlackOilModel(arg{:}, 'water', haswat, 'oil', hasoil, 'gas', hasgas);

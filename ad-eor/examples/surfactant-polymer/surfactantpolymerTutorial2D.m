@@ -1,4 +1,4 @@
-% 2D Three-Phase Polymer Injection Case
+% 2D Three-Phase Surfactant-Polymer Injection Case
 %
 % This example contains a simple 4000 m-by-200 m-by-125 m reservoir
 % described on 20-by-1-by-5 uniform Cartesian grid. One injection well is
@@ -26,39 +26,23 @@ mrstModule add ad-core ad-blackoil ad-eor ad-fi ad-props ...
 % The first two files are the data for a simulation with shear-thinning
 % effect. The second two fils are the data for a simulation without shear
 % effect. The last two are the reference results from Eclipse.
-fname = {'BOPOLYMER.DATA', ...
-         'POLY.inc', ...
-         'BOPOLYMER_NOSHEAR.DATA', ...
-         'POLY_NOSHEAR.inc', ...
-         'smry.mat', ...
-         'smry_noshear.mat'};
-files = fullfile(getDatasetPath('BlackoilPolymer2D', 'download', true),...
-                                fname);
-
-% check to make sure the files are complete
-e = cellfun(@(pth) exist(pth, 'file') == 2, files);
-
-if ~all(e)
-    pl = ''; if sum(e) ~= 1, pl = 's'; end
-    msg = sprintf('Missing data file%s\n', pl);
-    msg = [msg, sprintf('  * %s\n', fname{~e})];
-    error('Dataset:Incomplete', msg);
-end
+current_dir = fileparts(mfilename('fullpath'));
+fn = fullfile(current_dir, 'BOSURFACTANT2D.DATA');
 gravity reset on;
 
-% Parsing the data file with shear-thinning effect.
-deck = readEclipseDeck(files{1});
+deck = readEclipseDeck(fn);
 % The deck is using metric system, MRST uses SI unit internally
 deck = convertDeckUnits(deck);
 
 % Construct physical model, initial state and dynamic well controls.
 [state0, model, schedule] = initEclipseProblemAD(deck);
 
-% Add polymer concentration
-state0.c   = zeros([model.G.cells.num, 1]);
-
-% maximum polymer concentration, used to handle the polymer adsorption
-state0.cmax= zeros([model.G.cells.num, 1]);
+% Add surfactant & polymer concentration
+state0.cp   = zeros([model.G.cells.num, 1]);
+state0.cs   = zeros([model.G.cells.num, 1]);
+% maximum surfactant & polymer concentration, used to handle the polymer adsorption
+state0.cpmax= zeros([model.G.cells.num, 1]);
+state0.csmax= zeros([model.G.cells.num, 1]);
 
 %% Select nonlinear and linear solvers
 
@@ -78,15 +62,6 @@ nonlinearsolver = getNonLinearSolver(model, 'DynamicTimesteps', false, ...
                                      'useCPR', false);
 nonlinearsolver.useRelaxation = true;
 
-%% Visualize the properties of the black-oil fluid model
-% We launch the interactive viewer for the black-oil fluid model, and
-% specify the pressure range for which the tables are given. Note that
-% extrapolation beyond the specified values for black-oil properties can
-% result in non-physical curves, depending on how the input was given.
-inspectFluidModel(model, 'pressureRange', (50:10:600)*barsa)
-example_name = 'blackoil2D';
-vizPolymerModel();
-
 %% Run the schedule with plotting function
 % Once a system has been created it is trivial to run the schedule. Any
 % options such as maximum non-linear iterations and tolerance can be set in
@@ -101,237 +76,53 @@ close all
 fn = getPlotAfterStep(state0, model, schedule, ...
     'plotWell', true, 'plotReservoir', true, 'view', [20, 8], ...
     'field', 's:2');
-[wellSols, states, reports] = ...
+[wellSolsSP, statesSP, reportsSP] = ...
     simulateScheduleAD(state0, model, schedule, ...
                     'NonLinearSolver', nonlinearsolver, 'afterStepFn', fn);
 
-%% Comparing the result with reference result from commercial simualtor.
-% loading the reference result smary.mat
-load (files{5});
-% the time for the reference result
-T_ref = smry.get(':+:+:+:+', 'TIME', ':');
-% the time for the MRST result
-T_mrst = convertTo(cumsum(schedule.step.val), day);
+% we use schedulew to run the three phase black oil water flooding simulation.
+scheduleW = schedule;
+scheduleW.control(2).W(1).c = 0;
+scheduleW.control(2).W(2).c = 0;
+[wellSolsW, statesW, reportW] = simulateScheduleAD(state0, model, scheduleW, 'afterStepFn', fn);
 
-% generate a color map for plotting use.
-color_map = lines(10);
-color_mrst = color_map(1, :);
-color_ref  = color_map(2, :);
+%% Plot cell oil saturation in different tsteps of surfactant flooding and water flooding
 
-mrstplot = @(T_mrst, data, color) plot(T_mrst, data, '-', ...
-                                       'linewidth', 2, 'color', color);
-referenceplot = @(T_ref, data, color) plot(T_ref, data, '--',...
-                                       'linewidth', 4, 'color', color);
+T = (60:30:300);
 
-% Plotting the water injection rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'INJE01';
-reference = smry.get(well_name, 'WWIR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'qWs', well_name)), ...
-                                                              meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-title(['Water injection rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Water injection rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference'})
-pause(0.1);
+min( cellfun(@(x)min(x.s(:,2)), statesSP) );
+max( cellfun(@(x)max(x.s(:,2)), statesSP) );
 
-% Plotting the bhp for the injection well
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'INJE01';
-reference = smry.get(well_name, 'WBHP', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'bhp', well_name)), barsa);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-title(['Bottom hole pressure for ', well_name]);
-xlabel('Time (days)');
-ylabel('Bottom hole pressure (Bar)');
-axis tight;
-legend({'MRST', 'reference'})
-pause(0.1);
+figure
+for i = 1 : length(T)
+    subplot(3,3,i)
+    plotCellData(G, statesSP{T(i)}.s(:,2))
+    plotWell(G, schedule.control(1).W)
+    axis tight
+    colormap(jet)
+    view(3)
+    caxis([0, 0.79])
+    title(['T = ', num2str(T(i))])
+end
 
-% Plotting the oil production rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'PROD01';
-reference = smry.get(well_name, 'WOPR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'qOs', well_name)), ...
-                                                              meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-title(['Oil production rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Oil production rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference'})
-pause(0.1);
+min( cellfun(@(x)min(x.s(:,2)), statesW) );
+max( cellfun(@(x)max(x.s(:,2)), statesW) );
 
-% Plotting the oil production rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'PROD01';
-reference = smry.get(well_name, 'WWPR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'qWs', well_name)), ...
-                                                             meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-title(['Water production rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Water production rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference'})
-pause(0.1);
+figure
+for i = 1 : length(T)
+    subplot(3,3,i)
+    plotCellData(G, statesW{T(i)}.s(:,2))
+    plotWell(G, schedule.control(1).W)
+    axis tight
+    colormap(jet)
+    view(3)
+    caxis([0, 0.79])
+    title(['T = ', num2str(T(i))])
+end
 
+%% Plot well solutions
 
-%% Run the simulation without shear effect.
-% You can load the files{3} to run the simulation.
-% Here we just modify the model directly to disable the shear effect.
-close all
-model.usingShear = false;
-
-fn = getPlotAfterStep(state0, model, schedule, ...
-    'plotWell', true, 'plotReservoir', true, 'view', [20, 8], ...
-    'field', 's:2');
-[wellSolsNoShear, statesNoShear, reportsNoShear] = ...
-    simulateScheduleAD(state0, model, schedule, ...
-                    'NonLinearSolver', nonlinearsolver, 'afterStepFn', fn);
-
-%% Plotting the results from two simulations and their reference results.
-% load the reference results for the non-shear case.
-load (files{6});
-% the time for the reference result
-% since the commercial software might cut the time steps, the actually used
-% schedule can be different from the previous running with shear-thinning.
-T_ref_noshear = smry.get(':+:+:+:+', 'TIME', ':');
-
-color_mrst_noshear = color_map(3, :);
-color_ref_noshear = color_map(4,:);
-
-% Plotting the water injection rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'INJE01';
-reference = smry.get(well_name, 'WWIR', ':');
-reference_noshear = smry_noshear.get(well_name, 'WWIR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan; reference_noshear(1) = nan;
-
-mrst = convertTo(abs(getWellOutput(wellSols, 'qWs', well_name)),...
-                                                        meter^3/day);
-mrst_noshear = convertTo(abs(getWellOutput(wellSolsNoShear, 'qWs', ...
-                                          well_name)), meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-mrstplot(T_mrst, mrst_noshear, color_mrst_noshear);
-referenceplot(T_ref_noshear, reference_noshear, color_ref_noshear);
-title(['Water injection rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Water injection rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference', 'MRST no shear', 'reference no shear'})
-pause(0.1);
-
-
-% Plotting the bhp for the injection well
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'INJE01';
-reference = smry.get(well_name, 'WBHP', ':');
-reference_noshear = smry_noshear.get(well_name, 'WBHP', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan; reference_noshear(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'bhp', well_name)), barsa);
-mrst_noshear = convertTo(abs(getWellOutput(wellSolsNoShear, 'bhp', ...
-                                           well_name)), barsa);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-mrstplot(T_mrst, mrst_noshear, color_mrst_noshear);
-referenceplot(T_ref_noshear, reference_noshear, color_ref_noshear);
-title(['Bottom hole pressure for ', well_name]);
-xlabel('Time (days)');
-ylabel('Bottom hole pressure (Bar)');
-axis tight;
-legend({'MRST', 'reference', 'MRST no shear', 'reference no shear'})
-pause(0.1);
-
-% Plotting the oil production rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'PROD01';
-reference = smry.get(well_name, 'WOPR', ':');
-reference_noshear = smry_noshear.get(well_name, 'WOPR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan; reference_noshear(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'qOs', well_name)), ...
-                                                          meter^3/day);
-mrst_noshear = convertTo(abs(getWellOutput(wellSolsNoShear, 'qOs', ...
-                                          well_name)), meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-mrstplot(T_mrst, mrst_noshear, color_mrst_noshear);
-referenceplot(T_ref_noshear, reference_noshear, color_ref_noshear);
-title(['Oil production rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Oil production rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference'})
-pause(0.1);
-
-% Plotting the water production rate
-h = figure(); clf;
-set(gca,'FontSize',20);
-set(h, 'Position', [100, 100, 900, 600]);
-well_name = 'PROD01';
-reference = smry.get(well_name, 'WWPR', ':');
-reference_noshear = smry_noshear.get(well_name, 'WWPR', ':');
-% the first value of the result of the commerical simualtor is always zero.
-reference(1) = nan; reference_noshear(1) = nan;
-mrst = convertTo(abs(getWellOutput(wellSols, 'qWs', well_name)), ...
-                                                              meter^3/day);
-mrst_noshear = convertTo(abs(getWellOutput(wellSolsNoShear, 'qWs', ...
-                                          well_name)), meter^3/day);
-hold on;
-mrstplot(T_mrst, mrst, color_mrst);
-referenceplot(T_ref, reference, color_ref);
-mrstplot(T_mrst, mrst_noshear, color_mrst_noshear);
-referenceplot(T_ref_noshear, reference_noshear, color_ref_noshear);
-title(['Water production rate for ', well_name]);
-xlabel('Time (days)');
-ylabel('Water production rate (m^3/day)');
-axis tight;
-legend({'MRST', 'reference', 'MRST no shear', 'reference no shear'})
-pause(0.1);
-
-
-%%
-% save resMRSTPolymer wellSols states schedule;
-fprintf('The simulation has been finished! \n');
+plotWellSols({wellSolsSP, wellSolsW})
 
 %% Copyright notice
 

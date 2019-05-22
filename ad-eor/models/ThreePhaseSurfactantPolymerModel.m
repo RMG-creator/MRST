@@ -1,8 +1,8 @@
-classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
-    %Three-phase black-oil model with support for polymer injection
+classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
+    %Three-phase black-oil model with support for surfactant and polymer injection
     %
     % SYNOPSIS:
-    %   model = ThreePhaseBlackOilPolymerModel(G, rock, fluid, varargin)
+    %   model = ThreePhaseSurfactantPolymerModel(G, rock, fluid, varargin)
     %
     % DESCRIPTION: 
     %   Fully implicit three phase blackoil model with polymer.
@@ -22,25 +22,20 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
     %
 
     properties
-        % Polymer present
+        % Surfactant and Polymer present
         polymer
-        % Using PLYSHEAR shear model based on water velocity
-        usingShear
-	    % Using PLYSHLOG shear model based on water velocity
-        usingShearLog
-	    % Using PLYSHLOG shear model base on water shear rate
-        usingShearLogshrate
+        surfactant
     end
 
     methods
         function model = ThreePhaseSurfactantPolymerModel(G, rock, fluid, varargin)
-            model = model@ThreePhaseBlackOilPolymerModel(G, rock, fluid, varargin{:});
+            model = model@ThreePhaseBlackOilModel(G, rock, fluid, varargin{:});
 
-            % This is the model parameters for oil/water/gas/polymer system
+            % This is the model parameters for oil/water/gas/surfactant/polymer system
             model.polymer = true;
+            model.surfactant = true;
 %           Add veloc calculation
             model = model.setupOperators(G, rock, varargin{:});
-            model.surfactant = true;
             model = merge_options(model, varargin{:});
         end
 
@@ -60,18 +55,26 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
         function state = validateState(model, state)
             state = validateState@ThreePhaseBlackOilPolymerModel(model, state);
             nc = model.G.cells.num;
+            model.checkProperty(state, 'Polymer', [nc, 1], [1, 2]);
+            model.checkProperty(state, 'Polymermax', [nc, 1], [1, 2]);
             model.checkProperty(state, 'Surfactant', [nc, 1], [1, 2]);
             model.checkProperty(state, 'SurfactantMax', [nc, 1], [1, 2]);
         end
 
         % --------------------------------------------------------------------%
         function [state, report] = updateState(model, state, problem, dx, drivingForces)
-            [state, report] = updateState@ThreePhaseBlackOilPolymerModel(model, ...
+            [state, report] = updateState@ThreePhaseBlackOilModel(model, ...
                state, problem,  dx, drivingForces);
 
             % c denotes concentration of polymer, cs is concentration of surfactant.    
+            if model.polymer
+                cp = model.getProp(state, 'polymer');
+                cp = min(cp, model.fluid.cpmax);
+                state = model.setProp(state, 'polymer', max(cp, 0));
+            end
             if model.surfactant
                 cs = model.getProp(state, 'surfactant');
+                cs = min(cs, model.fluid.csmax);
                 state = model.setProp(state, 'surfactant', max(cs, 0) );
             end
         end
@@ -80,11 +83,27 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
         function [state, report] = updateAfterConvergence(model, state0, state, dt, drivingForces)
             [state, report] = updateAfterConvergence@ThreePhaseBlackOilPolymerModel(model, state0, state, dt, drivingForces);
 
-            if model.surfactant
-                  cs     = model.getProp(state, 'surfactant');
-                  csmax  = model.getProp(state, 'surfactantmax');
-                  state = model.setProp(state, 'surfactantmax', max(csmax, cs));
+            if model.polymer
+                cp     = model.getProp(state, 'polymer');
+                cpmax  = model.getProp(state, 'polymermax');
+                state = model.setProp(state, 'polymermax', max(cpmax, cp));
             end
+            if model.surfactant
+                cs     = model.getProp(state, 'surfactant');
+                csmax  = model.getProp(state, 'surfactantmax');
+                state = model.setProp(state, 'surfactantmax', max(csmax, cs));
+            end
+        end
+        
+        % --------------------------------------------------------------------%
+        function model = validateModel(model, varargin)
+            if isempty(model.FlowPropertyFunctions)
+                model.FlowPropertyFunctions = SurfactantPolymerFlowPropertyFunctions(model);
+            end
+            if isempty(model.FluxDiscretization)
+                model.FluxDiscretization = PolymerFluxDiscretization(model);
+            end
+            model = validateModel@ThreePhaseBlackOilModel(model, varargin{:});
         end
 
         % --------------------------------------------------------------------%
@@ -93,15 +112,26 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
             % pressure or water saturation is located in state)
             switch(lower(name))
                 case {'polymer', 'polymermax'}
-                    c = model.getComponentNames();
-                    index = find(strcmpi(c, 'polymer'));
+                    cp = model.getComponentNames();
+                    index = find(strcmpi(cp, 'polymer'));
                     if strcmpi(name, 'polymer')
-                        fn = 'c';
+                        fn = 'cp';
                     else
-                        fn = 'cmax';
+                        fn = 'cpmax';
                     end
+                case {'surfactant', 'surfactantmax'}
+                    cs = model.getComponentNames();
+                    index = find(strcmpi(cs, 'surfactant'));
+                    if strcmpi(name, 'surfactant')
+                        fn = 'cs';
+                    else
+                        fn = 'csmax';
+                    end    
                 case 'qwpoly'
                     fn = 'qWPoly';
+                    index = ':';
+                case 'qwsft'
+                    fn = 'qWSft';
                     index = ':';
                 otherwise
                     [fn, index] = getVariableField@ThreePhaseBlackOilModel(...
@@ -112,10 +142,25 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
         % --------------------------------------------------------------------%
         function names = getComponentNames(model)
             names = getComponentNames@ThreePhaseBlackOilModel(model);
-            if model.polymer
+            if model.polymer && model.surfactant
                 names{end+1} = 'polymer';
+                names{end+2} = 'surfactant';
+            elseif model.polymer && ~model.surfactant
+                names{end+1} = 'polymer';
+            elseif model.surfactant
+                names{end+1} = 'surfactant';
             end
         end
+        
+        % --------------------------------------------------------------------%
+        function state = storeSurfData(model, state, s, cs, Nc, sigma)
+            state.SWAT    = double(s);
+            state.SURFACT = double(cs);
+            state.SURFCNM = log(double(Nc))/log(10);
+            state.SURFST  = double(sigma);
+            % state.SURFADS = double(ads);
+        end
+        
         % --------------------------------------------------------------------%
         function scaling = getScalingFactorsCPR(model, problem, names, solver)
             nNames = numel(names);
@@ -143,6 +188,8 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
             end
         end
 
+        %% TODO CHECK WHAT IS THIS AND HOW TO CHANGE IT
+        
         function [eq, src] = addComponentContributions(model, cname, eq, component, src, force)
         % For a given component conservation equation, compute and add in
         % source terms for a specific source/bc where the fluxes have
@@ -191,23 +238,26 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
         
         function [names, types] = getExtraWellEquationNames(model)
             [names, types] = getExtraWellEquationNames@ThreePhaseBlackOilModel(model);
-            if model.polymer
+            if model.polymer && model.surfactant
                 names{end+1} = 'polymerWells';
+                names{end+2} = 'surfactantWells';
                 types{end+1} = 'perf';
+                types{end+2} = 'perf';
             end
         end
 
         function names = getExtraWellPrimaryVariableNames(model)
             names = getExtraWellPrimaryVariableNames@ThreePhaseBlackOilModel(model);
-            if model.polymer
+            if model.polymer && model.surfactant
                 names{end+1} = 'qWPoly';
+                names{end+2} = 'qWSft';
             end
         end
 
         function [compEqs, compSrc, eqNames, wellSol] = getExtraWellContributions(model, well, wellSol0, wellSol, q_s, bh, packed, qMass, qVol, dt, iteration)
             [compEqs, compSrc, eqNames, wellSol] = getExtraWellContributions@ThreePhaseBlackOilModel(model, well, wellSol0, wellSol, q_s, bh, packed, qMass, qVol, dt, iteration);
-            if model.polymer
-                assert(model.water, 'Polymer injection requires a water phase.');
+            if model.polymer && model.surfactant
+                assert(model.water, 'Surfactant-Polymer injection requires a water phase.');
                 f = model.fluid;
 
                 % Water is always first
@@ -215,28 +265,36 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilPolymerModel
                 cqWs = qMass{wix}./f.rhoWS; % connection volume flux at surface condition
 
                 if well.isInjector()
-                    concWell = model.getProp(well.W, 'polymer');
-                    cqP = concWell.*cqWs;
+                    concWellp = model.getProp(well.W, 'polymer');
+                    concWells = model.getProp(well.W, 'surfactant');
+                    cqP = concWellp.*cqWs;
                 else
-                    pix = strcmpi(model.getComponentNames(), 'polymer');
-                    concWell = packed.components{pix};
+                    pixp = strcmpi(model.getComponentNames(), 'polymer');
+                    pixs = strcmpi(model.getComponentNames(), 'surfactant');
+                    concWellp = packed.components{pixp};
+                    concWells = packed.components{pixs};
 
                     a = f.muWMult(f.cmax).^(1-f.mixPar);
-                    cbarw     = concWell/f.cmax;
+                    cbarw     = concWellp/f.cmax;
 
                     % the term (a + (1 - a).*cbarw) account for the
                     % todd-longstaff mixing factor, which model the fact that for
                     % not-fully mixed polymer solution the polymer does not
                     % travel at the same velocity as water. See the governing
                     % equation for polymer (e.g. equationsOilWaterPolymer.m)
-                    cqP = concWell.*cqWs./(a + (1-a).*cbarw);
+                    cqP = concWellp.*cqWs./(a + (1-a).*cbarw);
                 end
+                cqS = concWells.*cqWs;
 
                 qwpoly = packed.extravars{strcmpi(packed.extravars_names, 'qwpoly')};
+                qwsft = packed.extravars{strcmpi(packed.extravars_names, 'qwsft')};
 
-                compEqs{end+1} = qwpoly - sum(concWell.*cqWs);
+                compEqs{end+1} = qwpoly - sum(concWellp.*cqWs);
+                compEqs{end+2} = qwsft - sum(cqWs);
                 compSrc{end+1} = cqP;
+                compSrc{end+2} = cqS;
                 eqNames{end+1} = 'polymerWells';
+                eqNames{end+2} = 'surfactantWells';       
             end
         end
     end

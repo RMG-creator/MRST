@@ -9,7 +9,7 @@ classdef SurfactantRelativePermeability < BaseRelativePermeability
     methods
         function gp = SurfactantRelativePermeability(model, varargin)
             gp@BaseRelativePermeability(model, varargin{:});
-            gp = gp.dependsOn({'sat', 'c', 'capillaryNumber'}, 'state');
+            gp = gp.dependsOn({'sat', 'cs', 'capillaryNumber'}, 'state');
             satreg  = model.rock.regions.saturation; 
             surfreg = model.rock.regions.surfactant;
             gp.zeroSurf = GridProperty(model, satreg);
@@ -19,10 +19,10 @@ classdef SurfactantRelativePermeability < BaseRelativePermeability
         function kr = evaluateOnDomain(prop, model, state)
 
             fluid = model.fluid;
-            [sat, c, Nc] = model.getProps(state, 'sat', 'surfactant', 'capillaryNumber');
+            [sat, cs, Nc] = model.getProps(state, 'sat', 'surfactant', 'capillaryNumber');
 
-            isSft = (value(c) > 0);
-            m = 0*c;
+            isSft = (value(cs) > 0);
+            m = 0*cs;
             if nnz(isSft) > 0
                 logNc = log(Nc(isSft))/log(10);
                 % We cap logNc (as done in Eclipse)
