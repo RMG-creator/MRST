@@ -35,12 +35,13 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             model.polymer = true;
             model.surfactant = true;
 %           Add veloc calculation
-            model = model.setupOperators(G, rock, varargin{:});
-            model = merge_options(model, varargin{:});
+%             model = model.setupOperators(G, rock, varargin{:});
+%             model = merge_options(model, varargin{:});
         end
 
         % --------------------------------------------------------------------%
         function model = setupOperators(model, G, rock, varargin)
+            model.operators = setupOperatorsTPFA(G, rock, varargin{:});
             model.operators.veloc = computeVelocTPFA(G, model.operators.internalConn);
             model.operators.sqVeloc = computeSqVelocTPFA(G, model.operators.internalConn);
         end
@@ -53,7 +54,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
 
         % --------------------------------------------------------------------%
         function state = validateState(model, state)
-            state = validateState@ThreePhaseBlackOilPolymerModel(model, state);
+            state = validateState@ThreePhaseBlackOilModel(model, state);
             nc = model.G.cells.num;
             model.checkProperty(state, 'Polymer', [nc, 1], [1, 2]);
             model.checkProperty(state, 'Polymermax', [nc, 1], [1, 2]);
@@ -66,7 +67,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             [state, report] = updateState@ThreePhaseBlackOilModel(model, ...
                state, problem,  dx, drivingForces);
 
-            % c denotes concentration of polymer, cs is concentration of surfactant.    
+            % cp denotes concentration of polymer, cs is concentration of surfactant.    
             if model.polymer
                 cp = model.getProp(state, 'polymer');
                 cp = min(cp, model.fluid.cpmax);
@@ -113,7 +114,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             switch(lower(name))
                 case {'polymer', 'polymermax'}
                     cp = model.getComponentNames();
-                    index = find(strcmpi(cp, 'polymer'));
+                    index = nnz(strcmpi(cp, 'polymer'));
                     if strcmpi(name, 'polymer')
                         fn = 'cp';
                     else
@@ -121,7 +122,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
                     end
                 case {'surfactant', 'surfactantmax'}
                     cs = model.getComponentNames();
-                    index = find(strcmpi(cs, 'surfactant'));
+                    index = nnz(strcmpi(cs, 'surfactant'));
                     if strcmpi(name, 'surfactant')
                         fn = 'cs';
                     else
@@ -143,8 +144,14 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
         function names = getComponentNames(model)
             names = getComponentNames@ThreePhaseBlackOilModel(model);
             if model.polymer && model.surfactant
-                names{end+1} = 'polymer';
-                names{end+2} = 'surfactant';
+%                 switch(lower(name))
+%                 case {'polymer', 'polymermax'}
+                    names{end+1} = 'polymer';
+%                 case {'surfactant', 'surfactantmax'}
+                    names{end+1} = 'surfactant';
+%                 end
+%                 names{end+1} = 'polymer';
+%                 names{end+1} = 'surfactant';
             elseif model.polymer && ~model.surfactant
                 names{end+1} = 'polymer';
             elseif model.surfactant
@@ -240,9 +247,9 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             [names, types] = getExtraWellEquationNames@ThreePhaseBlackOilModel(model);
             if model.polymer && model.surfactant
                 names{end+1} = 'polymerWells';
-                names{end+2} = 'surfactantWells';
+                names{end+1} = 'surfactantWells';
                 types{end+1} = 'perf';
-                types{end+2} = 'perf';
+                types{end+1} = 'perf';
             end
         end
 
@@ -250,7 +257,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             names = getExtraWellPrimaryVariableNames@ThreePhaseBlackOilModel(model);
             if model.polymer && model.surfactant
                 names{end+1} = 'qWPoly';
-                names{end+2} = 'qWSft';
+                names{end+1} = 'qWSft';
             end
         end
 
@@ -290,11 +297,11 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
                 qwsft = packed.extravars{strcmpi(packed.extravars_names, 'qwsft')};
 
                 compEqs{end+1} = qwpoly - sum(concWellp.*cqWs);
-                compEqs{end+2} = qwsft - sum(cqWs);
+                compEqs{end+1} = qwsft - sum(cqWs);
                 compSrc{end+1} = cqP;
-                compSrc{end+2} = cqS;
+                compSrc{end+1} = cqS;
                 eqNames{end+1} = 'polymerWells';
-                eqNames{end+2} = 'surfactantWells';       
+                eqNames{end+1} = 'surfactantWells';       
             end
         end
     end

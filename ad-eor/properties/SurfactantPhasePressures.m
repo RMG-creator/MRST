@@ -16,7 +16,6 @@ classdef SurfactantPhasePressures < GridProperty
             p = model.getProps(state, 'Pressure');
             pc = prop.getEvaluatedDependencies(state, 'CapillaryPressure');
             pc{1} = pc{1}.*fluid.ift(cs)/fluid.ift(0);
-            pc{2} = pc{2}.*fluid.ift(cs)/fluid.ift(0);
             nph = numel(pc);
             p_phase = cell(1, nph);
             for i = 1:nph

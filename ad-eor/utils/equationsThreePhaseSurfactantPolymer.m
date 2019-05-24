@@ -50,16 +50,18 @@ function [problem, state] = equationsThreePhaseSurfactantPolymer(state0, state, 
     along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     %}
 
-    opt = struct('Verbose',        mrstVerbose, ...
-        'reverseMode',    false, ...
-        'resOnly',        false, ...
-        'iteration',      -1 );
+    opt = struct('Verbose'        , mrstVerbose, ...
+                 'reverseMode'    , false      , ...
+                 'velocCompMethod', 'square'   , ... 
+                 'resOnly'        , false      , ...
+                 'iteration'      , -1 );
     opt = merge_options(opt, varargin{:});
 
     % Shorter names for some commonly used parts of the model and forces.
     W     = drivingForces.W;
     fluid = model.fluid;
     s    = model.operators;
+    G = model.G;
 
     % Properties at current timestep
     [p, sW, sG, rs, rv, cp, cpmax, cs, csmax, wellSol] = model.getProps(state, ...
@@ -158,7 +160,7 @@ function [problem, state] = equationsThreePhaseSurfactantPolymer(state0, state, 
 
     % Store fluxes / properties for debugging / plotting, if requested.
     if model.outputFluxes
-        state = model.storeFluxes(state, vW, vO, vG, vP);
+        state = model.storeFluxes(state, vW, vO, vG);
     end
     if model.extraStateOutput
         state = model.storebfactors(state, bW, bO, bG);
