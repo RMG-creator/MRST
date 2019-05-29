@@ -234,13 +234,13 @@ function [problem, state] = equationsThreePhaseSurfactantPolymer(state0, state, 
     divTerms = {divWater, divOil, divGas, divPolymer, divSurfactant};
     names = {'water', 'oil', 'gas', 'polymer', 'surfactant'};
     types = {'cell', 'cell', 'cell', 'cell', 'cell'};
-    concentrations = {cp, cs};
+    components = {cp, cs};
 
     % Add in any fluxes / source terms prescribed as boundary conditions.
     dissolved = model.getDissolutionMatrix(rs, rv);
     [eqs, state] = addBoundaryConditionsAndSources(model, eqs, names, types, state, ...
                                                     pressures, sat, mob, rho, ...
-                                                    dissolved, concentrations, ...
+                                                    dissolved, components, ...
                                                     drivingForces);
     
     % Finally, add in and setup well equations
@@ -265,7 +265,7 @@ function [problem, state] = equationsThreePhaseSurfactantPolymer(state0, state, 
                                                     wellSol, ...
                                                     wellVars, wellMap, ...
                                                     p, mob, rho, dissolved, ...
-                                                    concentrations, dt, opt);
+                                                    components, dt, opt);
     % Finally, adding divergence terms to equations
     for i = 1:numel(divTerms)
         eqs{i} = eqs{i} + divTerms{i};

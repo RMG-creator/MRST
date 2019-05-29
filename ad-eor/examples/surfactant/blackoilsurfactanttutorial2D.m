@@ -22,7 +22,7 @@ mrstModule add ad-core ad-blackoil ad-eor ad-props deckformat mrst-gui
 %% We load the input data and setup the grid, rock and fluid structures
 
 current_dir = fileparts(mfilename('fullpath'));
-fn = fullfile(current_dir, 'BOSURFACTANT2D.DATA');
+fn = fullfile(current_dir, 'Test_of_BOSURFACTANT2D.DATA');
 gravity on
 
 deck = readEclipseDeck(fn);
@@ -47,8 +47,8 @@ model = ThreePhaseBlackOilSurfactantModel(G, rock, fluid, ...
 
 schedule = convertDeckScheduleToMRST(model, deck);
 state0 = initStateDeck(model,deck);
-state0.c    = zeros(G.cells.num, 1);
-state0.cmax = state0.c;
+state0.cs    = zeros(G.cells.num, 1);
+state0.csmax = state0.cs;
 
 %% Visualize some properties of the model we have setup
 %
@@ -70,8 +70,8 @@ fn = getPlotAfterStep(state0, model, schedule, 'plotWell', true, ...
 
 % we use schedulew to run the three phase black oil water flooding simulation.
 scheduleW = schedule;
-scheduleW.control(2).W(1).c = 0;
-scheduleW.control(2).W(2).c = 0;
+scheduleW.control(2).W(1).cs = 0;
+scheduleW.control(2).W(2).cs = 0;
 [wellSols, states, report] = simulateScheduleAD(state0, model, scheduleW, 'afterStepFn', fn);
                                        
 %% Plot cell oil saturation in different tsteps of surfactant flooding and water flooding

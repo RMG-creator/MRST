@@ -11,6 +11,7 @@ classdef FluxDiscretization < PropertyFunctions
         ComponentTotalFlux % Total mass flux for each component
         ComponentPhaseFlux % Phase fluxes for each component
         Transmissibility % Face-based transmissibility
+        FaceConcentration
     end
 
     properties (Access = protected)

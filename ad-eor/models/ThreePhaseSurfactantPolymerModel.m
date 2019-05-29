@@ -70,19 +70,18 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
             % cp denotes concentration of polymer, cs is concentration of surfactant.    
             if model.polymer
                 cp = model.getProp(state, 'polymer');
-                cp = min(cp, model.fluid.cpmax);
+                cp = min(cp, model.fluid.cmax);
                 state = model.setProp(state, 'polymer', max(cp, 0));
             end
             if model.surfactant
                 cs = model.getProp(state, 'surfactant');
-                cs = min(cs, model.fluid.csmax);
                 state = model.setProp(state, 'surfactant', max(cs, 0) );
             end
         end
 
         % --------------------------------------------------------------------%
         function [state, report] = updateAfterConvergence(model, state0, state, dt, drivingForces)
-            [state, report] = updateAfterConvergence@ThreePhaseBlackOilPolymerModel(model, state0, state, dt, drivingForces);
+            [state, report] = updateAfterConvergence@ThreePhaseBlackOilModel(model, state0, state, dt, drivingForces);
 
             if model.polymer
                 cp     = model.getProp(state, 'polymer');

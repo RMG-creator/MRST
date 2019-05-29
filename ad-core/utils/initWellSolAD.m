@@ -127,14 +127,30 @@ for k = 1:nw
     if isprop(model, 'solvent') && model.solvent
        ws(k).qSs = W(k).sign*irate;
     end
-
-    if model.polymer && model.surfactant
-        ws(k).cp = W(k).cp*ws(k).qWs;
-        ws(k).cs = W(k).cs*ws(k).qWs;
-    elseif model.polymer && ~model.surfactant
-        ws(k).cp = W(k).cp*ws(k).qWs;
-    elseif model.surfactant
-        ws(k).cs = W(k).cs*ws(k).qWs;
+    
+    if isfield(model, 'polymer') && isfield(model, 'surfactant')
+        if model.polymer && model.surfactant
+            ws(k).cp = W(k).cp*ws(k).qWs;
+            ws(k).cs = W(k).cs*ws(k).qWs;
+        elseif model.polymer && ~model.surfactant
+            ws(k).cp = W(k).cp*ws(k).qWs;
+        elseif model.surfactant
+            ws(k).cs = W(k).cs*ws(k).qWs;
+        end
+    else
+        cnames = model.getComponentNames();
+        for i = 1:numel(cnames)
+            switch lower(cnames{i})
+                case {'polymer'}
+                    % Water based EOR
+                    ws(k).cp(i) = W(k).cp(i)*ws(k).qWs;
+                case {'surfactant'}
+                    % Water based EOR
+                    ws(k).cs(i) = W(k).cs(i)*ws(k).qWs;
+                otherwise
+                    % No good guess.
+            end
+        end
     end
 
     ws(k).mixs = W(k).compi;
@@ -175,14 +191,32 @@ for k = 1:numel(W)
                 ix = 1 + model.water + model.oil + model.gas;
                 ws(k).qSs = v*W(k).compi(ix);
             end
-            if model.polymer && model.surfactant
-               ws(k).cp = W(k).cp*ws(k).qWs;
-               ws(k).cs = W(k).cs*ws(k).qWs;
-            elseif model.polymer && ~model.surfactant
-               ws(k).cp = W(k).cp*ws(k).qWs;
-            elseif model.surfactant
-               ws(k).cs = W(k).cs*ws(k).qWs;
+            
+            if isfield(model, 'polymer') && isfield(model, 'surfactant')
+                if model.polymer && model.surfactant
+                    ws(k).cp = W(k).cp*ws(k).qWs;
+                    ws(k).cs = W(k).cs*ws(k).qWs;
+                elseif model.polymer && ~model.surfactant
+                    ws(k).cp = W(k).cp*ws(k).qWs;
+                elseif model.surfactant
+                    ws(k).cs = W(k).cs*ws(k).qWs;
+                end
+            else
+                cnames = model.getComponentNames();
+                for i = 1:numel(cnames)
+                    switch lower(cnames{i})
+                        case {'polymer'}
+                            % Water based EOR
+                            ws(k).cp(i) = W(k).cp(i)*ws(k).qWs;
+                        case {'surfactant'}
+                            % Water based EOR
+                            ws(k).cs(i) = W(k).cs(i)*ws(k).qWs;
+                        otherwise
+                            % No good guess.
+                    end
+                end
             end
+                
         case 'orat'
             ws(k).qOs = v;
         case 'wrat'

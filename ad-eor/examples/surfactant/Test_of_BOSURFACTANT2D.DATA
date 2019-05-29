@@ -18,8 +18,6 @@ DISGAS
 
 VAPOIL
 
-POLYMER
-
 SURFACT
 
 METRIC
@@ -1079,7 +1077,7 @@ PVTO
 NOECHO
 
 INCLUDE
- 'surfactantpolymer.inc' /
+ 'surfact.inc' /
  /
 
 
@@ -1121,9 +1119,6 @@ OPTIONS
 136* 2
 /
 
-RPTSCHED
- POLYMER PRES SGAS SOIL SWAT /
-/
 
 RPTRST
 VELOCITY
@@ -1146,10 +1141,6 @@ WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
 /
 
-WPOLYMER
-   'INJE01' 0.0  0.0 /
-/
-
 WSURFACT
   'INJE01'  0.0  /
 /
@@ -1168,9 +1159,6 @@ WCONINJE
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
 /
-WPOLYMER
-   'INJE01' 0.0 0.0 /
-/
 WSURFACT
   'INJE01'  30.0  /
 /
@@ -1185,9 +1173,6 @@ WCONINJE
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
-/
-WPOLYMER
-   'INJE01' 0.0 0.0 /
 /
 WSURFACT
   'INJE01'  0.0  /
