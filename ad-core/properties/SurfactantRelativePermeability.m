@@ -35,44 +35,56 @@ classdef SurfactantRelativePermeability < BaseRelativePermeability
             satreg  = model.rock.regions.saturation; 
             surfreg = model.rock.regions.surfactant;
 
-            sWcon    = fluid.krPts.w(satreg, 2);  % Residual water saturation   without surfactant
-            sOres    = fluid.krPts.w(satreg, 2);  % Residual oil saturation     without surfactant
-            sWconSft = fluid.krPts.w(surfreg, 2); % Residual water saturation   with    surfactant
-            sOresSft = fluid.krPts.w(surfreg, 2); % Residual oil saturation     with    surfactant
+            sWcon_noSft = fluid.krPts.w(satreg, 2);  % Residual water saturation   without surfactant
+            sOres_noSft = fluid.krPts.w(satreg, 2);  % Residual oil saturation     without surfactant
+            sWcon_Sft   = fluid.krPts.w(surfreg, 2); % Residual water saturation   with    surfactant
+            sOres_Sft   = fluid.krPts.w(surfreg, 2); % Residual oil saturation     with    surfactant
 
             % Interpolated water/oil residual saturations
-            sNcWcon = m.*sWconSft + (1 - m).*sWcon;
-            sNcOres = m.*sOresSft + (1 - m).*sOres;
+            sNcWcon = m.*sWcon_Sft + (1 - m).*sWcon_noSft;
+            sNcOres = m.*sOres_Sft + (1 - m).*sOres_noSft;
 
             sNcWEff = (sW - sNcWcon)./(1 - sNcWcon - sNcOres);
             sNcOEff = (sO - sNcOres)./(1 - sNcWcon - sNcOres);
 
             % Rescaling of the saturation - without surfactant
-            sNcWnoSft  = (1 - sWcon - sOres).*sNcWEff + sWcon;
-            sNcOnoSft  = (1 - sWcon - sOres).*sNcOEff + sOres;
-            krNcWnoSft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krW, ...
-                                                              sNcWnoSft);
-            krNcOnoSft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOW, ...
-                                                              sNcOnoSft);
-
-            % Rescaling of the saturation - with surfactant
-            sNcWSft  = (1 - sWconSft - sOresSft).*sNcWEff + sWconSft;
-            sNcOSft  = (1 - sWconSft - sOresSft).*sNcOEff + sOresSft;
-            krNcWSft = prop.fullSurf.evaluateFunctionOnGrid(fluid.krW, ...
-                                                             sNcWSft);
-            krNcOSft = prop.fullSurf.evaluateFunctionOnGrid(fluid.krOW, ...
-                                                             sNcOSft);
-
-            d  = (sG + sW - sWcon);
-            ww = (sW - sWcon)./d;
+            sW_noSft  = (1 - sWcon_noSft - sOres_noSft).*sNcWEff + sWcon_noSft;
+            sO_noSft  = (1 - sWcon_noSft - sOres_noSft).*sNcOEff + sOres_noSft;
+            % Compute rel perm - without surfactant
+            krW_noSft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krW, ...
+                                                              sW_noSft);
+            krOW_noSft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOW, ...
+                                                              sO_noSft);
+            krOG_noSft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOG, ...
+                                                              sO_noSft);
+            
+            d  = (sG + sW_noSft - sWcon_noSft);
+            ww = (sW_noSft - sWcon_noSft)./d;
             wg = 1 - ww;
+            krO_noSft = wg.*krOG_noSft + ww.*krOG_noSft;
             
-            krW  = m.*krNcWSft + (1 - m).*krNcWnoSft;
+            % Rescaling of the saturation - with surfactant
+            sW_Sft  = (1 - sWcon_Sft - sOres_Sft).*sNcWEff + sWcon_Sft;
+            sO_Sft  = (1 - sWcon_Sft - sOres_Sft).*sNcOEff + sOres_Sft;
+            % Compute rel perm - with surfactant
+            krW_Sft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krW, ...
+                                                              sW_Sft);
+            krOW_Sft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOW, ...
+                                                              sO_Sft);
+            krOG_Sft = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOG, ...
+                                                              sO_Sft);
+            
+            d  = (sG + sW_Sft - sWcon_Sft);
+            ww = (sW_Sft - sWcon_Sft)./d;
+            wg = 1 - ww;
+            krO_Sft = wg.*krOG_Sft + ww.*krOG_Sft;
 
-            krOW = m.*krNcOSft + (1 - m).*krNcOnoSft;
-            krOG = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krOG, sO);
-            krO  = wg.*krOG + ww.*krOW;
+            % Interpolate relperm, with and without surfactant
             
+            krW  = m.*krW_Sft + (1 - m).*krW_noSft;
+            krO  = m.*krO_Sft + (1 - m).*krO_noSft;
+            
+            % We keep
             krG = prop.zeroSurf.evaluateFunctionOnGrid(fluid.krG, sG);
             
             kr = {krW, krO, krG};
