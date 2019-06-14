@@ -22,7 +22,7 @@ mrstModule add ad-core ad-blackoil ad-eor ad-props deckformat mrst-gui
 %% We load the input data and setup the grid, rock and fluid structures
 
 current_dir = fileparts(mfilename('fullpath'));
-fn = fullfile(current_dir, 'Test_of_BOSURFACTANT2D.DATA');
+fn = fullfile(current_dir, 'BOSURFACTANT1D.DATA');
 % fn = fullfile(current_dir, 'Test_of_SURFACTANT2D.DATA');
 % fn = fullfile(current_dir, 'BOSURFACTANT2D.DATA');
 gravity on
@@ -56,7 +56,7 @@ state0.csmax = state0.cs;
 %
 % We gathered visualizing command for this tutorial in the following script
 
-% example_name = '2D';
+% example_name = '1D';
 % vizSurfactantModel;
 % close all;
 
@@ -116,7 +116,7 @@ scheduleW.control(3).W(2).cs = 0;
 
 %% Plot well solutions
 
-plotWellSols({wellSolsSurfactant, wellSols}, cumsum(schedule.step.val))
+plotWellSols({wellSolsSurfactant, wellSols})
 
 %% Copyright notice
 

@@ -1135,7 +1135,7 @@ COMPDAT
 /
 
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
@@ -1154,13 +1154,13 @@ TSTEP
 
 ---------------------------------------------------------------------------
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
 /
 WSURFACT
-  'INJE01'  30.0  /
+  'INJE01'  2.0  /
 /
 TSTEP
 34*25
@@ -1169,7 +1169,7 @@ TSTEP
 
 ---------------------------------------------------------------------------
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /

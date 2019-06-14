@@ -296,7 +296,7 @@ classdef ThreePhaseSurfactantPolymerModel < ThreePhaseBlackOilModel
                 qwsft = packed.extravars{strcmpi(packed.extravars_names, 'qwsft')};
 
                 compEqs{end+1} = qwpoly - sum(concWellp.*cqWs);
-                compEqs{end+1} = qwsft - sum(cqWs);
+                compEqs{end+1} = qwsft - sum(concWells.*cqWs);
                 compSrc{end+1} = cqP;
                 compSrc{end+1} = cqS;
                 eqNames{end+1} = 'polymerWells';

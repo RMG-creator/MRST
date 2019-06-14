@@ -229,6 +229,30 @@ function [problem, state] = equationsThreePhaseSurfactantPolymer(state0, state, 
     % Conservation of surfactant in water:
     surfactant = (1/dt)*((pv.*bW.*sW.*cs - pv0.*bW0.*sW0.*cs0) + adss_term);
     divSurfactant = s.Div(bWvSft);
+    
+    % Applying correction to the surfactant and polymer equation when the Jacobian is
+    % prolematic for some cells.
+    % Typically it is due to totally and almost non-existence of water.    
+    if ~opt.resOnly
+        epsilon = 1.e-8;
+        % the first way is based on the diagonal values of the resulting
+        % Jacobian matrix
+        epsP = sqrt(epsilon)*mean(abs(diag(polymer.jac{4})));
+        epsS = sqrt(epsilon)*mean(abs(diag(surfactant.jac{5})));
+        % sometimes there is no water in the whole domain
+        if (epsP == 0.)
+            epsP = epsilon;
+        end
+        if (epsS == 0.)
+            epsS = epsilon;
+        end
+        % bad marks the cells prolematic in evaluating Jacobian
+        badP = abs(diag(surfactant.jac{4})) < epsP;
+        badS = abs(diag(surfactant.jac{5})) < epsS;
+        % the other way is to choose based on the water saturation
+        polymer(badP) = cp(badP);
+        surfactant(badS) = cs(badS);
+    end
 
     eqs   = {water, oil, gas, polymer, surfactant};
     divTerms = {divWater, divOil, divGas, divPolymer, divSurfactant};
