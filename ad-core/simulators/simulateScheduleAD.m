@@ -231,6 +231,11 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
     firstEmptyIx = 1;
     for i = 1:nSteps
         step_header(i);
+        
+        if i ==10
+            1;
+        end
+        
         state0 = state;
         
         currControl = schedule.step.control(i);

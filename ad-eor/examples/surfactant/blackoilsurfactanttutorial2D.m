@@ -22,8 +22,8 @@ mrstModule add ad-core ad-blackoil ad-eor ad-props deckformat mrst-gui
 %% We load the input data and setup the grid, rock and fluid structures
 
 current_dir = fileparts(mfilename('fullpath'));
-fn = fullfile(current_dir, 'Test_of_BOSURFACTANT2D.DATA');
-% fn = fullfile(current_dir, 'Test_of_SURFACTANT2D.DATA');
+% fn = fullfile(current_dir, 'Test_of_BOSURFACTANT2D.DATA');
+fn = fullfile(current_dir, 'DZ_CASE.DATA');
 % fn = fullfile(current_dir, 'BOSURFACTANT2D.DATA');
 gravity on
 

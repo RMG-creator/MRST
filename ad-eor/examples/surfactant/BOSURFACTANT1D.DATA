@@ -1139,8 +1139,8 @@ VELOCITY
 /
 
 WELSPECS
-     'INJE01' 'I'    1    1  1* 'WATER'     /
-     'PROD01' 'P'    100  1  1* 'OIL'   7*  /
+     'INJE01' 'G'    1    1  1* 'WATER'     /
+     'PROD01' 'G'    100  1  1* 'OIL'   7*  /
 /
 
 COMPDAT
@@ -1149,7 +1149,7 @@ COMPDAT
 /
 
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
@@ -1168,7 +1168,7 @@ TSTEP
 
 ---------------------------------------------------------------------------
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
@@ -1183,7 +1183,7 @@ TSTEP
 
 ---------------------------------------------------------------------------
 WCONINJE
-     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 450 /
+     'INJE01' 'WATER' 'OPEN' 'RATE' 1000.00  1* 800 /
 /
 WCONPROD
      'PROD01' 'OPEN'  'BHP' 5* 260 /
