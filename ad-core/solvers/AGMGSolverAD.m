@@ -23,8 +23,8 @@ classdef AGMGSolverAD < LinearSolverAD
        function solver = AGMGSolverAD(varargin)
             require agmg
             solver = solver@LinearSolverAD();
-            solver.setupDone = false;
-            solver.reuseSetup = false;
+            solver.setupDone    = false;
+            solver.reuseSetup   = false;
             solver.reduceToCell = true;
             solver = merge_options(solver, varargin{:});
        end
@@ -45,16 +45,16 @@ classdef AGMGSolverAD < LinearSolverAD
            end
            % Solve the linear system to a given tolerance
            if solver.reuseSetup
-               fn = @(A, b) agmg(A, b, [], solver.tolerance, ...
-                                    solver.maxIterations, [], [], 1);
+               fn = @(A, b) agmg(A, b, [], solver.tolerance, solver.maxIterations, ...
+                                 solver.verbose, [], 1);
            else
-               fn = @(A, b) agmg(A, b, [], solver.tolerance, ...
-                                    solver.maxIterations);
+               fn = @(A, b) agmg(A, b, [], solver.tolerance, solver.maxIterations, ...
+                                 solver.verbose);
            end
            [result, flag, relres, iter, resvec] = fn(A, b);
-           report = struct('Converged', flag < 1, ...
-                           'RelativeResidual', relres, ...
-                           'Iterations',   iter);
+           report = struct('Converged'       , flag < 1, ...
+                           'RelativeResidual', relres  , ...
+                           'Iterations'      ,   iter);
             if solver.extraReport
                 report.ResidualHistory = resvec;
             end
