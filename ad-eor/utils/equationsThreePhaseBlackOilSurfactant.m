@@ -221,6 +221,21 @@ function [problem, state] = equationsThreePhaseBlackOilSurfactant(state0, state,
     % Conservation of surfactant in water:
     surfactant = (1/dt)*((pv.*bW.*sW.*c - pv0.*bW0.*sW0.*c0) + ads_term);
     divSurfactant = s.Div(bWvSft);
+    
+    if ~opt.resOnly
+        epsilon = 1.e-8;
+        % the first way is based on the diagonal values of the resulting
+        % Jacobian matrix
+        eps = sqrt(epsilon)*mean(abs(diag(surfactant.jac{4})));
+        % sometimes there is no water in the whole domain
+        if (eps == 0.)
+            eps = epsilon;
+        end
+        % bad marks the cells prolematic in evaluating Jacobian
+        bad = abs(diag(surfactant.jac{4})) < eps;
+        % the other way is to choose based on the water saturation
+        surfactant(bad) = c(bad);
+    end
 
     eqs      = {water   , oil   , gas   , surfactant};
     divTerms = {divWater, divOil, divGas, divSurfactant};

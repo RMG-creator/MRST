@@ -62,102 +62,102 @@ wellSol = assignFromSchedule(W, model, wellSol);
 end
 
 function ws = defaultWellSol(state, W, model)
-nw = numel(W);
-[~, actPh] = model.getActivePhases();
+    nw = numel(W);
+    [~, actPh] = model.getActivePhases();
 
-ws = repmat(struct(...
-    'name',   [],...
-    'status', [],...
-    'type',   [],...
-    'val',    [],...
-    'sign',   [],...
-    'bhp',    [],...
-    'qWs',    [],...
-    'qOs',    [],...
-    'qGs',    [],...
-    'qSs',    [],...
-    'mixs',   [],...
-    'cstatus',[],...
-    'cdp',    [],...
-    'cqs',    []), [1, nw]);
+    ws = repmat(struct(...
+        'name',   [],...
+        'status', [],...
+        'type',   [],...
+        'val',    [],...
+        'sign',   [],...
+        'bhp',    [],...
+        'qWs',    [],...
+        'qOs',    [],...
+        'qGs',    [],...
+        'qSs',    [],...
+        'mixs',   [],...
+        'cstatus',[],...
+        'cdp',    [],...
+        'cqs',    []), [1, nw]);
 
- 
-% Additional model dependent fields
-if isprop(model, 'solvent') && model.solvent % solvent model
-	 [ws(:).qSs] = deal(0);
-end
 
-if isprop(model, 'polymer') && model.polymer % polymer model
-	 [ws(:).qWPoly] = deal(0);
-end
-
-if isprop(model, 'surfactant') && model.surfactant % surfactant model
-	 [ws(:).qWSft] = deal(0);
-end
-
-if isprop(model, 'compositionalFluid') % Compositional model
-     ncomp = model.compositionalFluid.getNumberOfComponents();
-	 [ws(:).components] = deal(zeros(1, ncomp));
-end
-
-% just initialize fields that are not assigned in assignFromSchedule
-for k = 1:nw
-    nConn = numel(W(k).cells);
-    nPh   = numel(actPh);
-    ws(k).name = W(k).name;
-    % To avoid switching off wells, we need to start with a bhp that makes
-    % a producer produce and an injector inject. Hence, we intitialize the
-    % bhp such that the top connection pressure is 5bar above/below the
-    % corresponding well-cell pressure. If W(k).dZ is ~= 0, however, we
-    % don't know wht a decent pressure is ...
-    % The increment should depend on the problem and the 5bar could be a
-    % pit-fall... (also used in initializeBHP in updateConnDP)
-    ws(k).bhp = state.pressure(W(k).cells(1)) + 5*W(k).sign*barsa;
-
-    irate = eps;
-    if model.water
-        ws(k).qWs  = W(k).sign*irate;
+    % Additional model dependent fields
+    if isprop(model, 'solvent') && model.solvent % solvent model
+        [ws(:).qSs] = deal(0);
     end
-    if model.oil
-        ws(k).qOs  = W(k).sign*irate;
+
+    if isprop(model, 'polymer') && model.polymer % polymer model
+        [ws(:).qWPoly] = deal(0);
     end
-    if model.gas
-        ws(k).qGs  = W(k).sign*irate;
+
+    if isprop(model, 'surfactant') && model.surfactant % surfactant model
+        [ws(:).qWSft] = deal(0);
     end
-    if isprop(model, 'solvent') && model.solvent
-       ws(k).qSs = W(k).sign*irate;
+
+    if isprop(model, 'compositionalFluid') % Compositional model
+        ncomp = model.compositionalFluid.getNumberOfComponents();
+        [ws(:).components] = deal(zeros(1, ncomp));
     end
-    
-    if isfield(model, 'polymer') && isfield(model, 'surfactant')
-        if model.polymer && model.surfactant
-            ws(k).cp = W(k).cp*ws(k).qWs;
-            ws(k).cs = W(k).cs*ws(k).qWs;
-        elseif model.polymer && ~model.surfactant
-            ws(k).cp = W(k).cp*ws(k).qWs;
-        elseif model.surfactant
-            ws(k).cs = W(k).cs*ws(k).qWs;
+
+    % just initialize fields that are not assigned in assignFromSchedule
+    for k = 1:nw
+        nConn = numel(W(k).cells);
+        nPh   = numel(actPh);
+        ws(k).name = W(k).name;
+        % To avoid switching off wells, we need to start with a bhp that makes
+        % a producer produce and an injector inject. Hence, we intitialize the
+        % bhp such that the top connection pressure is 5bar above/below the
+        % corresponding well-cell pressure. If W(k).dZ is ~= 0, however, we
+        % don't know wht a decent pressure is ...
+        % The increment should depend on the problem and the 5bar could be a
+        % pit-fall... (also used in initializeBHP in updateConnDP)
+        ws(k).bhp = state.pressure(W(k).cells(1)) + 5*W(k).sign*barsa;
+
+        irate = eps;
+        if model.water
+            ws(k).qWs  = W(k).sign*irate;
         end
-    else
-        cnames = model.getComponentNames();
-        for i = 1:numel(cnames)
-            switch lower(cnames{i})
-                case {'polymer'}
-                    % Water based EOR
-                    ws(k).cp(i) = W(k).cp(i)*ws(k).qWs;
-                case {'surfactant'}
-                    % Water based EOR
-                    ws(k).cs(i) = W(k).cs(i)*ws(k).qWs;
-                otherwise
-                    % No good guess.
+        if model.oil
+            ws(k).qOs  = W(k).sign*irate;
+        end
+        if model.gas
+            ws(k).qGs  = W(k).sign*irate;
+        end
+        if isprop(model, 'solvent') && model.solvent
+            ws(k).qSs = W(k).sign*irate;
+        end
+
+        if isprop(model, 'polymer') && isprop(model, 'surfactant')
+            if model.polymer && model.surfactant
+                ws(k).cp = W(k).cp*ws(k).qWs;
+                ws(k).cs = W(k).cs*ws(k).qWs;
+            elseif model.polymer && ~model.surfactant
+                ws(k).cp = W(k).cp*ws(k).qWs;
+            elseif model.surfactant
+                ws(k).cs = W(k).cs*ws(k).qWs;
+            end
+        else
+            cnames = model.getComponentNames();
+            for i = 1:numel(cnames)
+                switch lower(cnames{i})
+                    case {'polymer'}
+                        % Water based EOR
+                        ws(k).cp(i) = W(k).cp(i)*ws(k).qWs;
+                    case {'surfactant'}
+                        % Water based EOR
+                        ws(k).cs(i) = W(k).cs(i)*ws(k).qWs;
+                    otherwise
+                        % No good guess.
+                end
             end
         end
-    end
 
     ws(k).mixs = W(k).compi;
     ws(k).qs   = W(k).sign*ones(1, nPh)*irate;
     ws(k).cdp  = zeros(nConn,1);
     ws(k).cqs  = zeros(nConn,nPh);
-end
+    end
 end
 
 function ws = assignFromSchedule(W, model, ws)
@@ -192,7 +192,7 @@ for k = 1:numel(W)
                 ws(k).qSs = v*W(k).compi(ix);
             end
             
-            if isfield(model, 'polymer') && isfield(model, 'surfactant')
+            if isprop(model, 'polymer') && isprop(model, 'surfactant')
                 if model.polymer && model.surfactant
                     ws(k).cp = W(k).cp*ws(k).qWs;
                     ws(k).cs = W(k).cs*ws(k).qWs;

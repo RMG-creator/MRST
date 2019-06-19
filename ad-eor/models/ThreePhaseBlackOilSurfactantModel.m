@@ -198,7 +198,7 @@ classdef ThreePhaseBlackOilSurfactantModel < ThreePhaseBlackOilModel
                                             % surface condition.
                 cqS = concWell.*cqWs;
 
-                compEqs{end+1} = qwsft - sum(cqWs);
+                compEqs{end+1} = qwsft - sum(concWell.*cqWs);
                 compSrc{end+1} = cqS;
                 compNames{end+1} = 'surfactantWells';
             end

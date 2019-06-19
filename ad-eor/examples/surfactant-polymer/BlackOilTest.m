@@ -16,7 +16,7 @@
 clc
 clear
 
-mrstModule add ad-core ad-blackoil ad-eor ad-fi ad-props ...
+mrstModule add ad-core ad-blackoil ad-fi ad-props ...
                deckformat mrst-gui
 
 %% Set up model and initial conditions
@@ -27,7 +27,7 @@ mrstModule add ad-core ad-blackoil ad-eor ad-fi ad-props ...
 % effect. The second two fils are the data for a simulation without shear
 % effect. The last two are the reference results from Eclipse.
 current_dir = fileparts(mfilename('fullpath'));
-fn = fullfile(current_dir, 'SURFACTANTPOLYMER2D.DATA');
+fn = fullfile(current_dir, 'BlackOilTest.DATA');
 gravity reset on;
 
 deck = readEclipseDeck(fn);
@@ -38,11 +38,11 @@ deck = convertDeckUnits(deck);
 [state0, model, schedule] = initEclipseProblemAD(deck);
 
 % Add surfactant & polymer concentration
-state0.cp   = zeros([model.G.cells.num, 1]);
-state0.cs   = zeros([model.G.cells.num, 1]);
+% state0.cp   = zeros([model.G.cells.num, 1]);
+% state0.cs   = zeros([model.G.cells.num, 1]);
 % maximum surfactant & polymer concentration, used to handle the polymer adsorption
-state0.cpmax= zeros([model.G.cells.num, 1]);
-state0.csmax= zeros([model.G.cells.num, 1]);
+% state0.cpmax= zeros([model.G.cells.num, 1]);
+% state0.csmax= zeros([model.G.cells.num, 1]);
 
 %% Select nonlinear and linear solvers
 
@@ -79,18 +79,18 @@ close all
 fn = getPlotAfterStep(state0, model, schedule, ...
     'plotWell', true, 'plot1d', true,'axis tight', false, ...
     'field', 's:2');
-[wellSolsSP, statesSP, reportsSP] = ...
+[wellSols, states, reports] = ...
     simulateScheduleAD(state0, model, schedule, ...
                     'NonLinearSolver', nonlinearsolver, 'afterStepFn', fn);
 % return
 % we use schedulew to run the three phase black oil water flooding simulation.
-scheduleW = schedule;
-scheduleW.control(2).W(1).cs = 0;
-scheduleW.control(2).W(2).cs = 0;
-fn1 = getPlotAfterStep(state0, model, schedule, ...
-    'plotWell', true, 'plot1d', true,'axis tight', false, ...
-    'field', 's:2');
-[wellSolsW, statesW, reportW] = simulateScheduleAD(state0, model, scheduleW, 'afterStepFn', fn1);
+% scheduleW = schedule;
+% scheduleW.control(2).W(1).cs = 0;
+% scheduleW.control(2).W(2).cs = 0;
+% fn1 = getPlotAfterStep(state0, model, schedule, ...
+%     'plotWell', true, 'plot1d', true,'axis tight', false, ...
+%     'field', 's:2');
+% [wellSolsW, statesW, reportW] = simulateScheduleAD(state0, model, scheduleW, 'afterStepFn', fn1);
 
 %% Plot cell oil saturation in different tsteps of surfactant flooding and water flooding
 
@@ -128,7 +128,7 @@ fn1 = getPlotAfterStep(state0, model, schedule, ...
 
 %% Plot well solutions
 
-plotWellSols({wellSolsSP, wellSolsW},cumsum(schedule.step.val))
+plotWellSols({wellSols},cumsum(schedule.step.val))
 
 %% Copyright notice
 
