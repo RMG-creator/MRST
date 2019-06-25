@@ -26,6 +26,7 @@ classdef WellPhaseFlux < StateFunction
             vTdp = value(Tdp);
             injection = vTdp > 0;
             production = ~injection & vTdp ~= 0;
+%             crossflow = (injection & ~isInjector);
             crossflow = (injection & ~isInjector) | ...
                         (production & isInjector);
             if any(injection)

@@ -7,7 +7,7 @@ classdef WellComponentTotalFlux < StateFunction
     methods
         function gp = WellComponentTotalFlux(varargin)
             gp@StateFunction(varargin{:});
-            gp = gp.dependsOn({'FacilityWellMapping'});
+            gp = gp.dependsOn({'FacilityWellMapping', 'WellComponentInjectionTargets'});
             gp = gp.dependsOn('ComponentPhaseFlux');
         end
         
@@ -34,8 +34,7 @@ classdef WellComponentTotalFlux < StateFunction
             % If we have cross-flow and/or we are injecting more than one
             % component, we need to ensure that injecting perforation
             % composition mixtures equal the mix entering the wellbore
-            map = prop.getEvaluatedDependencies(state, 'FacilityWellMapping');
-            W   = map.W;
+            [map, targets] = prop.getEvaluatedDependencies(state, 'FacilityWellMapping', 'WellComponentInjectionTargets');
             vd  = value(v);
             vd  = horzcat(vd{:});
             vdt = sum(vd,2);
@@ -46,26 +45,10 @@ classdef WellComponentTotalFlux < StateFunction
             crossflow = (injection & ~isInjector) | ...
                         (production & isInjector);
             if any(injection)
-                ws = state.wellSol(map.active);
-                targets = arrayfun(@(x) x.type, W, 'UniformOutput', false);
-                val = vertcat(ws.val);
-                isZero = ~strcmpi(targets, 'bhp') & val == 0;
-                nw = numel(W);
-                surfaceComposition = cell(ncomp, nph);
-                for c = 1:ncomp
-                    % Store well injector composition
-                    surfaceComposition(c, :) = model.ReservoirModel.Components{c}.getPhaseComponentFractionWell(model.ReservoirModel, state, W);
-                end
-                rem = cellfun(@isempty, surfaceComposition);
-                [surfaceComposition{rem}] = deal(zeros(nw, 1));
-                compi = zeros(nw, ncomp);
-                Wcomp = vertcat(W.compi);
-                for ph = 1:nph
-                    compi = compi + Wcomp(:, ph).*[surfaceComposition{:, ph}];
-                end
+                compi = targets.surfaceMassComposition;
                 if any(crossflow)
                     % allready been disp'ed in WellPhaseFlux
-                    compi = crossFlowMixture(vd, compi, map, true, isZero);
+                    compi = crossFlowMixture(vd, compi, map, true, targets.massRateTargets);
                 end
                 compi_perf = compi(map.perf2well, :);
                 vt = zeros(sum(injection), 1);

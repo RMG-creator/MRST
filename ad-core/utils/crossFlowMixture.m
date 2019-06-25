@@ -1,4 +1,4 @@
-function compi = crossFlowMixture(flux, compi, map, conserveMass, is_zero)
+function compi = crossFlowMixture(flux, compi, map, conserveMass, net_injection_given)
     if nargin < 4
         conserveMass = false;
     end
@@ -10,16 +10,20 @@ function compi = crossFlowMixture(flux, compi, map, conserveMass, is_zero)
 
     % Find net flux - this is what is possibily injected from the
     % surface connection with the top composition
-    net_flux = sum_perf(sum(flux, 2), map);
+    total_flux = sum(flux, 2);
+    into_well_from_reservoir = sum_perf(-min(flux, 0), map);
+    from_well_into_reservoir = sum_perf(max(flux, 0), map);
+    net_flux = sum(from_well_into_reservoir, 2) - sum(into_well_from_reservoir, 2);
+    
     net_injection = max(net_flux, 0);
-    if nargin > 4
-        net_injection(is_zero) = 0;
-    end
     % Flux into well-bore plus net injection weighted with topside
     % composition
-    sum_in = sum_perf(flux_in, map);
     top_in =  bsxfun(@times, net_injection, compi);
-    comp = sum_in + top_in;
+    if nargin > 4
+        replace = ~isnan(net_injection_given);
+        top_in(replace, :) = net_injection_given(replace).*compi(replace, :);
+    end
+    comp = into_well_from_reservoir + top_in;
     compT = sum(comp, 2);
     % Normalize to get fractions
     comp = bsxfun(@rdivide, comp, compT);
@@ -29,8 +33,9 @@ function compi = crossFlowMixture(flux, compi, map, conserveMass, is_zero)
         act = sum(top_in, 2) > 0;
         % Top net injected composition + sum of composition into well-bore,
         % divided by total flux out from well-bore
-        tmp = (top_in(act, :) + sum_in(act, :))./sum(max(net_flux(act, :), 0), 2);
-        compi(act, :) = tmp;
+        out = sum(max(from_well_into_reservoir(act, :), 0), 2);
+        tmp = (top_in(act, :) + into_well_from_reservoir(act, :))./max(out, 1e-12);
+        comp(act, :) = tmp;
     end
     active = compT > 0;
     compi(active, :) = comp(active, :);
