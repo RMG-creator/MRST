@@ -131,20 +131,11 @@ along with MRST.  If not, see <http://www.gnu.org/licenses/>.
             restartStep = nan;
         elseif ndata == 0
             fprintf('-> No output found, starting from first step...\n');
+            restartStep = 1;
         else
-            if ndata == nstep
-                fprintf('-> Complete output found, nothing to do here.\n');
-                % Already run!
-                doSim = false;
-                restartStep = nan;
-            elseif ndata == 0
-                fprintf('-> No output found, starting from first step...\n');
-                restartStep = 1;
-            else
-                fprintf('-> Partial output found, starting from step %d of %d...\n', ndata+1, nstep);
-                state0 = state_handler{ndata};
-                restartStep = ndata + 1;
-            end
+            fprintf('-> Partial output found, starting from step %d of %d...\n', ndata+1, nstep);
+            state0 = state_handler{ndata};
+            restartStep = ndata + 1;
         end
 
         timer = tic();
