@@ -15,6 +15,11 @@ classdef MultipliedPoreVolume < StateFunction
             % rock-compressibility
             f = model.fluid;
             pv = model.operators.pv;
+            if isprop(model, 'disc') && ~isempty(model.disc)
+                cells = (1:model.disc.G.cells.num)';
+                [~, ~, cellNo] = model.disc.getCubature(cells, 'volume');
+                pv = pv(cellNo);
+            end
             if isfield(f, 'pvMultR')
                 p = model.getProp(state, 'pressure');
                 pvMult = prop.evaluateFunctionOnDomainWithArguments(f.pvMultR, p);
