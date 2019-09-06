@@ -61,6 +61,7 @@ properties
     % checks.
     AutoDiffBackend
     OutputStateFunctions = {};
+    disc
 end
 
 methods
@@ -860,7 +861,7 @@ methods
     end
 
 
-    function [p, state] = getProp(model, state, name)
+    function [p, state] = getProp(model, state, name, evaluate)
         % Get a single property from the nonlinear state
         %
         % SYNOPSIS:
@@ -894,14 +895,21 @@ methods
             error('PhysicalModel:UnknownVariable', ...
                 'Unknown variable field %s', name);
         else
-            if iscell(state.(fn))
-                if ischar(index)
-                    p = state.(fn);
-                else
-                    p = state.(fn){index};
-                end
+            if nargin < 4
+                evaluate = true;
+            end
+            if evaluate && isprop(model, 'disc') && ~isempty(model.disc)
+                p = model.disc.evaluateProp(fn, index, state);
             else
-                p = state.(fn)(:, index);
+                if iscell(state.(fn))
+                    if ischar(index)
+                        p = state.(fn);
+                    else
+                        p = state.(fn){index};
+                    end
+                else
+                    p = state.(fn)(:, index);
+                end
             end
         end
     end
