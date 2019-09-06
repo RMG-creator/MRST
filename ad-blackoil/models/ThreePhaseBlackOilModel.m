@@ -159,7 +159,11 @@ methods
             phases = model.getPhaseNames();
             nph = numel(phases);
             sat = cell(1, nph);
-            fill = ones(model.G.cells.num, 1);
+            if isprop(model, 'disc') && ~isempty(model.disc)
+                fill = model.disc.getFillSat(state);
+            else
+                fill = ones(model.G.cells.num, 1);
+            end
             removed_sat = false(1, nph);
             for i = 1:numel(phases)
                 sub = strcmpi(names, ['s', phases(i)]);
