@@ -5,13 +5,11 @@ classdef PhasePressures < StateFunction
     methods
         function gp = PhasePressures(varargin)
             gp@StateFunction(varargin{:});
-            gp = gp.dependsOn({'CapillaryPressure'});
-            gp = gp.dependsOn({'pressure'}, 'state');
+            gp = gp.dependsOn({'CapillaryPressure', 'Pressure'});
         end
         
         function p_phase = evaluateOnDomain(prop, model, state)
-            p = model.getProps(state, 'Pressure');
-            pc = prop.getEvaluatedDependencies(state, 'CapillaryPressure');
+            [p, pc] = prop.getEvaluatedDependencies(state, 'Pressure', 'CapillaryPressure');
             nph = numel(pc);
             p_phase = cell(1, nph);
             for i = 1:nph
