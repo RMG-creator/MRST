@@ -2,6 +2,8 @@ classdef FlowPropertyFunctions < StateFunctionGrouping
     % Default grouping for describing a system of flow equations. Contains
     % basic properties like mobility, density, component total mass etc.
     properties
+        PhaseSaturation
+        Pressure
         Density % Phase density (1 x nphase)
         ShrinkageFactors % b = 1/B for each phase (1 x nphase)
         Viscosity % Phase viscosity (1 x nphase)
@@ -23,6 +25,10 @@ classdef FlowPropertyFunctions < StateFunctionGrouping
             props@StateFunctionGrouping();
             sat = props.getRegionSaturation(model);
             pvt = props.getRegionPVT(model);
+            
+            props.PhaseSaturation = PhaseSaturation(model);
+            props.Pressure        = Pressure(model);
+            
             % Saturation properties
             props.CapillaryPressure = BlackOilCapillaryPressure(model, sat);
             props.RelativePermeability = BaseRelativePermeability(model, sat);
