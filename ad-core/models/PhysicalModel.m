@@ -61,7 +61,7 @@ properties
     % checks.
     AutoDiffBackend
     OutputStateFunctions = {};
-    disc
+    disc = [];
 end
 
 methods
@@ -71,7 +71,7 @@ methods
         model.AutoDiffBackend = AutoDiffBackend();
         model = merge_options(model, varargin{:});
         model.G = G;
-
+        
         model.stepFunctionIsLinear = false;
     end
 
@@ -861,7 +861,7 @@ methods
     end
 
 
-    function [p, state] = getProp(model, state, name, evaluate)
+    function [p, state] = getProp(model, state, name, evaluate, faceValue)
         % Get a single property from the nonlinear state
         %
         % SYNOPSIS:
@@ -896,10 +896,11 @@ methods
                 'Unknown variable field %s', name);
         else
             if nargin < 4
-                evaluate = true;
+                evaluate  = true;
+                faceValue = false;
             end
-            if evaluate && isprop(model, 'disc') && ~isempty(model.disc)
-                p = model.disc.evaluateProp(fn, index, state);
+            if 0 && evaluate && isprop(model, 'disc') && ~isempty(model.disc)
+                p = model.disc.evaluateProp(fn, index, state, faceValue);
             else
                 if iscell(state.(fn))
                     if ischar(index)

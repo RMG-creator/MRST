@@ -108,6 +108,9 @@ methods
 
         if doSetup
             model.operators = setupOperatorsTPFA(G, model.rock, 'deck', model.inputdata);
+            if isempty(model.disc)
+                model.disc = FVDiscretization(model);
+            end
         end
     end
 
