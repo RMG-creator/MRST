@@ -22,9 +22,7 @@ classdef StateFunction
         function value = evaluateOnDomain(prop, model, state)
             % Given state, evaluate the canonical representation for the
             % current model.
-            name  = [prop.name, model.disc.suffix];
-            dof   = state.(name);
-            value = model.disc.evaluateProp(state, dof);
+            error('Base class should not be evaluated')
         end
 
         function prop = dependsOn(prop, varargin)
