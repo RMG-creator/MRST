@@ -861,7 +861,7 @@ methods
     end
 
 
-    function [p, state] = getProp(model, state, name, evaluate, faceValue)
+    function [p, state] = getProp(model, state, name)
         % Get a single property from the nonlinear state
         %
         % SYNOPSIS:
@@ -895,22 +895,14 @@ methods
             error('PhysicalModel:UnknownVariable', ...
                 'Unknown variable field %s', name);
         else
-            if nargin < 4
-                evaluate  = true;
-                faceValue = false;
-            end
-            if 0 && evaluate && isprop(model, 'disc') && ~isempty(model.disc)
-                p = model.disc.evaluateProp(fn, index, state, faceValue);
-            else
-                if iscell(state.(fn))
-                    if ischar(index)
-                        p = state.(fn);
-                    else
-                        p = state.(fn){index};
-                    end
+            if iscell(state.(fn))
+                if ischar(index)
+                    p = state.(fn);
                 else
-                    p = state.(fn)(:, index);
+                    p = state.(fn){index};
                 end
+            else
+                p = state.(fn)(:, index);
             end
         end
     end
