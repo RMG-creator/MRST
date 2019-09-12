@@ -9,7 +9,7 @@ classdef BaseRelativePermeability < StateFunction
     methods
         function gp = BaseRelativePermeability(varargin)
             gp@StateFunction(varargin{:});
-            gp = gp.dependsOn({'PhaseSaturation'});
+            gp = gp.dependsOn({'PhaseSaturations'});
             gp = gp.dependsOn({'sMax'}, 'state');
         end
         function kr = evaluateOnDomain(prop, model, state)
@@ -67,7 +67,7 @@ classdef BaseRelativePermeability < StateFunction
     
     function kr = relPermWO(prop, model, state)
         % Water-oil system
-        s = prop.getEvaluatedDependencies(state, 'PhaseSaturation');
+        s = prop.getEvaluatedDependencies(state, 'PhaseSaturations');
         wix = model.getPhaseIndex('W');
         oix = model.getPhaseIndex('O');
         if iscell(s)

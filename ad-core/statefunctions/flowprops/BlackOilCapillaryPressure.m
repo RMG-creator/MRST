@@ -13,7 +13,7 @@ classdef BlackOilCapillaryPressure < StateFunction
     methods
         function prop = BlackOilCapillaryPressure(model, varargin)
             prop = prop@StateFunction(model, varargin{:});
-            prop = prop.dependsOn({'PhaseSaturation'});
+            prop = prop.dependsOn({'PhaseSaturations'});
 %             prop = prop.dependsOn('s', 'state');
         end
         

@@ -11,9 +11,9 @@ classdef ComponentImplementation
         function c = ComponentImplementation(name)
             c.name = name;
             % Document dependencies internal to grouping
-            c = c.dependsOn({'PoreVolume', 'Density', 'Mobility'});
-            % State dependencies
-            c = c.dependsOn('s', 'state');
+            c = c.dependsOn({'PoreVolume', 'Density', 'Mobility', 'PhaseSaturations'});
+%             % State dependencies
+%             c = c.dependsOn('s', 'state');
         end
         
         function c = getComponentDensity(component, model, state)
@@ -56,10 +56,12 @@ classdef ComponentImplementation
             mass = component.getComponentDensity(model, state, varargin{:});
             ph = model.getPhaseNames();
             % Iterate over phases and weight by pore-volume and saturation
+            s = model.getProp(state, 'PhaseSaturations');
             for i = 1:numel(mass)
                 if ~isempty(mass{i})
-                    s = model.getProp(state, ['s', ph(i)]);
-                    mass{i} = s.*pv.*mass{i};
+                    six = model.getPhaseIndex(ph(i));
+%                     s = model.getProp(state, ['s', ph(i)]);
+                    mass{i} = s{six}.*pv.*mass{i};
                 end
             end
         end

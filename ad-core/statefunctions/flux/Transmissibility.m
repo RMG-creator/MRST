@@ -7,14 +7,15 @@ classdef Transmissibility < StateFunction
         function pp = Transmissibility(model)
             pp@StateFunction(model);
             if isfield(model.fluid, 'transMult')
-                pp = pp.dependsOn('pressure', 'state');
+                pp = pp.dependsOn({'Pressure'});
             end
         end
         
         function T = evaluateOnDomain(prop, model, state)
             T = model.operators.T;
             if isfield(model.fluid, 'transMult')
-                p = model.getProps(state, 'pressure');
+                p = prop.getEvaluatedDependencies(state, 'Pressure');
+                p = model.operators.faceAvg(p);
                 T = model.fluid.transMult(p).*T;
             end
         end
