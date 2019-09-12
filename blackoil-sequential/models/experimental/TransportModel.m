@@ -97,8 +97,9 @@ classdef TransportModel < WrapperModel
         function state = validateState(model, state)
             state = validateState@WrapperModel(model, state);
             fn = model.getVariableField('sT');
+            s  = model.parentModel.getProp(state, 's');
             if isfield(state, 's') && ~isfield(state, fn)
-                state = model.setProp(state, 'sT', sum(state.s, 2));
+                state = model.setProp(state, 'sT', sum(s, 2));
             end
         end
         
