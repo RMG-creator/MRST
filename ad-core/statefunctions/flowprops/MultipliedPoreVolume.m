@@ -17,8 +17,10 @@ classdef MultipliedPoreVolume < StateFunction
             pv = model.operators.pv;
             if isprop(model, 'disc') && ~isempty(model.disc)
                 cells = (1:model.disc.G.cells.num)';
-                [~, ~, cellNo] = model.disc.getCubature(cells, 'volume');
-                pv = pv(cellNo);
+                if strcmpi(class(model.disc), 'DGDiscretization')
+                    [~, ~, cells] = model.disc.getCubature(cells, 'volume');
+                end
+                pv = pv(cells);
             end
             if isfield(f, 'pvMultR')
                 p = model.getProp(state, 'pressure');
